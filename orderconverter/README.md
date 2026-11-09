@@ -1,6 +1,6 @@
 # Amazon Orders Converter
 
-**Version 1.3** · © 2026 NS Nexus Limited. All rights reserved.
+**Version 1.4** · © 2026 NS Nexus Limited. All rights reserved.
 
 A single-page web tool that turns Amazon Seller Central order reports into
 Gardners **i12 `.ORD`** order files: one file per Amazon order, ready to send to
@@ -17,7 +17,8 @@ Live at: `https://readery.co.uk/orderconverter/`
 | **Unshipped Orders** report (`.txt`, required): customer, address, SKU, quantity | One Gardners `.ORD` file per Amazon order |
 | **All Orders** report (`.txt`, optional): item and shipping prices | Multi-book orders as one file with a `DETAIL` block per book |
 
-- Runs entirely in the browser. No order data is sent to the server.
+- Order files are built in the browser. Customer data is never sent to the server; only order numbers and line counts go to the number service.
+- Sequence numbers and line references come from a small PHP service on the hosting (`counter.php`), so every computer uses the same numbers.
 - Reports can be uploaded together or one at a time, and are merged automatically.
 - Each order is shown as a card with warnings before download. Prices can be edited.
 - Download per order, or all orders as a `.zip`.
@@ -30,9 +31,28 @@ Live at: `https://readery.co.uk/orderconverter/`
 | `HEADER` date | Today, `DD/MM/YYYY` |
 | `HEADER` sequence | Running 9-digit number, unique for every order file (`000000001`, `000000002`, …). Stored in the browser as **Next sequence number** in Settings |
 
-The header sequence must be unique for every order ever sent (alphanumeric, max 20 characters): it never restarts, so after `999999999` it continues to `1000000000`. The line reference is numeric only and runs `000000001` to `999999999`, then starts again at `000000001`. Re-downloading the same order in one session reuses its numbers.
+The header sequence must be unique for every order ever sent (alphanumeric, max 20 characters): it never restarts, so after `999999999` it continues to `1000000000`. The line reference is numeric only and runs `000000001` to `999999999`, then starts again at `000000001`.
 
-**Important:** both counters are stored in the browser. Convert orders in one browser on one computer, and never clear its site data. If the counter is reset, set **Next sequence number** past the last one sent, or Gardners will reject the orders as duplicates.
+## Shared number service (`counter.php`)
+
+Both counters live on the hosting, per Gardners Account ID, in `data/counters.json`.
+
+- Numbers are issued when an order is downloaded. The service locks the file, so two computers downloading at the same moment never get the same number.
+- Each Amazon order keeps the numbers it was given. Converting it again, on any computer, reuses them and the order card shows **Already converted**, so Gardners' duplicate check stops a double order.
+- **Issue new numbers** on that card gives the order fresh numbers for a deliberate resend; the replaced numbers are kept in the file's history.
+- **Settings → Shared numbers** shows and sets the next numbers. The sequence can only be increased.
+- If the service can't be reached, downloads are switched off so numbers are never reused.
+
+Requests (JSON `POST`, or `GET` for `status`), all with `account`:
+
+| action | does |
+|---|---|
+| `status` | returns `nextSeq`, `nextRef` |
+| `lookup` | `ids: [...]` → numbers already issued to those orders |
+| `reserve` | `orders: [{id, lines}]`, optional `renew: [ids]` → issues or reuses numbers |
+| `set` | `nextSeq` (only upwards), `nextRef` |
+
+**Hosting requirements:** PHP 7.4 or later (Hostinger has it). Upload `index.html` and `counter.php` to `public_html/orderconverter/`. The `data/` folder is created on first use with an `.htaccess` that blocks web access. **Password-protect the `orderconverter` folder in hPanel**, as anyone who can reach `counter.php` could use up numbers. Back up `data/counters.json` now and then: it is the record of every number issued.
 | `DETAIL` line number | `000000001`, `000000002`, … within each file |
 | `DETAIL` reference | Unique per order line: a running 9-digit number (`000000001`, `000000002`, …), one per book line across all orders. Stored in the browser as **Next line reference** in Settings |
 | `DETAIL` ISBN | Amazon `sku` with the prefix removed (default `BK-`) and validated as ISBN-10/13 |
@@ -55,7 +75,8 @@ Output uses Windows line endings (CRLF) and plain ASCII by default, matching Gar
 
 ```
 Order Converter/
-├── index.html                                  Built, self-contained page: this is what gets hosted
+├── index.html                                  Built, self-contained page: upload to the hosting
+├── counter.php                                 Shared number service: upload next to index.html
 ├── README.md
 ├── Amazon-Orders-Converter-User-Manual.docx    User manual (Word)
 ├── Amazon-Orders-Converter-User-Manual.pptx    User manual (slides)
@@ -80,7 +101,8 @@ Order Converter/
 2. Rebuild: `python tools/build.py`
 3. Test with the files in `samples/`: upload both demo reports and check the two orders
    (one single-line, one multi-line).
-4. Upload the new `index.html` to `public_html/orderconverter/` on the hosting.
+4. Upload the new `index.html` (and `counter.php` if changed) to `public_html/orderconverter/` on the hosting.
+   Testing locally needs PHP: `php -S 127.0.0.1:8000` in this folder, then open `http://127.0.0.1:8000/`.
 
 When releasing a new version, update the version number in `src/page.html`
 (the comment at the top and the two footer notice strings).
@@ -109,6 +131,12 @@ See `Gardners-i12-questions.txt`. In short:
 - The sender address for tracking emails (to register in Seller Central)
 
 ## Changelog
+
+**v1.4**
+- Shared number service (`counter.php`) on the hosting: the sequence and line reference counters are the same on every computer
+- Orders keep their numbers; converting an order again shows **Already converted** and reuses them
+- **Issue new numbers** for a deliberate resend
+- Downloads switch off if the number service can't be reached
 
 **v1.3**
 - Unique reference is now a 9-digit running number per order line (`000000001` … `999999999`, then restarts), as requested by Gardners

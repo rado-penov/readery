@@ -4,8 +4,6 @@
   const DEFAULT_SETTINGS = {
     account: 'NSN001',
     headerFlag: 'Y',
-    nextSeq: '1',
-    nextRef: '1',
     detailFlag: '0',
     skuPrefix: 'BK-',
     serviceStandard: '001',
@@ -221,7 +219,7 @@
   }
 
   function renderOrd(order, settings, dateStr, overrides, seq, refs) {
-    refs = refs || refsFrom(settings.nextRef, order.lines.length);
+    refs = refs || refsFrom(1, order.lines.length);
     overrides = overrides || {};
     const c = v => clean(v, settings);
     const q = v => '"' + c(v) + '"';
@@ -237,7 +235,7 @@
     const sms = tracking && settings.useContactForTracking ? (r['buyer-phone-number'] || '').replace(/\s+/g, '') : '';
 
     const out = [];
-    out.push(`"HEADER",${q(accountId(settings))},${q(dateStr || todayStr())},${q(settings.headerFlag)},${q(formatHeaderSeq(seq || settings.nextSeq))}`);
+    out.push(`"HEADER",${q(accountId(settings))},${q(dateStr || todayStr())},${q(settings.headerFlag)},${q(formatHeaderSeq(seq))}`);
     order.lines.forEach((l, i) => {
       const ov = overrides[l.key] || {};
       const price = ov.price !== undefined ? ov.price : (l.price === null ? 0 : l.price);

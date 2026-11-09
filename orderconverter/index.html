@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Amazon Orders Converter v1.3
+  Amazon Orders Converter v1.4
   Copyright (c) 2026 NS Nexus Limited. All rights reserved.
   This software is the property of NS Nexus Limited.
 -->
@@ -115,6 +115,11 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 .site-footer .brand{color:var(--paper-hi);font-size:26px}
 .site-footer a{color:#DCE5DF}
 .site-footer .spacer{flex:1}
+.numbers{margin-top:22px;padding-top:18px;border-top:1px solid var(--rule)}
+.numbers h4{margin:0 0 4px;font:500 18px/1.3 var(--serif)}
+.again{margin:14px 0 0;padding:12px 14px;border-radius:4px;background:#E3EAE3;color:var(--cloth);font:400 15px/1.5 var(--sans);border-left:3px solid var(--cloth);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.again span{flex:1 1 320px}
+.again button{height:36px;padding:0 14px;font-size:14px}
 .site-footer .legal{color:var(--paper-hi);font-weight:500}
 
 @media (max-width:720px){
@@ -158,15 +163,25 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     <details id="settingsBox">
       <summary>Settings</summary>
       <div class="grid" id="settings"></div>
+      <div class="numbers">
+        <h4>Shared numbers</h4>
+        <p class="hint" style="margin:0 0 12px">Kept on the server for this Gardners Account ID, so every computer uses the same numbers. The sequence number can only go up.</p>
+        <div class="grid" style="margin-top:0">
+          <label>Next sequence number<input type="text" id="nSeq" inputmode="numeric" autocomplete="off"></label>
+          <label>Next line reference<input type="text" id="nRef" inputmode="numeric" autocomplete="off"></label>
+        </div>
+        <div class="row" style="margin-top:12px"><button type="button" id="saveNums">Save numbers</button><span class="meta" id="srvStatus"></span></div>
+      </div>
       <div class="row" style="margin-top:18px">
         <button type="button" id="resetSettings">Reset to defaults</button>
       </div>
-      <p class="hint">Settings, including the Gardners Account ID and the next sequence and line reference numbers, are saved in this browser. The sequence number never repeats; line references run from 000000001 to 999999999, then start again. Use one browser for converting, so the numbers are never reused. Prices and delivery are written in pence (e.g. £9.99 → 999).</p>
+      <p class="hint">Other settings are saved in this browser. The sequence number never repeats; line references run from 000000001 to 999999999, then start again. Prices and delivery are written in pence (e.g. £9.99 → 999).</p>
     </details>
   </div>
 
   <h2 class="section-title">Orders</h2>
   <div class="card warns" id="acctWarn" hidden>Enter your Gardners Account ID in Settings to enable downloads.</div>
+  <div class="card warns" id="srvWarn" hidden>Can't reach the number service (counter.php), so downloads are switched off to make sure numbers are never reused. Check your connection and reload the page.</div>
   <div class="card">
     <div class="row">
       <span id="summary">No orders loaded</span>
@@ -184,7 +199,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     <span class="brand">Readery</span>
     <span>Gardners i12 order format · one file per Amazon order</span>
     <span class="spacer"></span>
-    <span class="legal" id="legal">Amazon Orders Converter v1.3 · © 2026 NS Nexus Limited. All rights reserved.</span>
+    <span class="legal" id="legal">Amazon Orders Converter v1.4 · © 2026 NS Nexus Limited. All rights reserved.</span>
   </div>
 </footer>
 <div class="toast" id="toast"></div>
@@ -197,8 +212,6 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   const DEFAULT_SETTINGS = {
     account: 'NSN001',
     headerFlag: 'Y',
-    nextSeq: '1',
-    nextRef: '1',
     detailFlag: '0',
     skuPrefix: 'BK-',
     serviceStandard: '001',
@@ -414,7 +427,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   }
 
   function renderOrd(order, settings, dateStr, overrides, seq, refs) {
-    refs = refs || refsFrom(settings.nextRef, order.lines.length);
+    refs = refs || refsFrom(1, order.lines.length);
     overrides = overrides || {};
     const c = v => clean(v, settings);
     const q = v => '"' + c(v) + '"';
@@ -430,7 +443,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     const sms = tracking && settings.useContactForTracking ? (r['buyer-phone-number'] || '').replace(/\s+/g, '') : '';
 
     const out = [];
-    out.push(`"HEADER",${q(accountId(settings))},${q(dateStr || todayStr())},${q(settings.headerFlag)},${q(formatHeaderSeq(seq || settings.nextSeq))}`);
+    out.push(`"HEADER",${q(accountId(settings))},${q(dateStr || todayStr())},${q(settings.headerFlag)},${q(formatHeaderSeq(seq))}`);
     order.lines.forEach((l, i) => {
       const ov = overrides[l.key] || {};
       const price = ov.price !== undefined ? ov.price : (l.price === null ? 0 : l.price);
@@ -537,8 +550,6 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   const FIELDS = [
     ['account','Gardners Account ID','text'],
     ['headerFlag','Header flag','text'],
-    ['nextSeq','Next sequence number','text'],
-    ['nextRef','Next line reference','text'],
     ['detailFlag','Detail last field','text'],
     ['skuPrefix','SKU prefix to remove','text'],
     ['serviceStandard','Service code: Standard','text'],
@@ -559,7 +570,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   ];
 
   let settings = loadSettings();
-  const state = { files: [], orderRows: new Map(), allRows: new Map(), overrides: {}, orders: [], assigned: {} };
+  const state = { files: [], orderRows: new Map(), allRows: new Map(), overrides: {}, orders: [], assigned: {}, server: { ok: null, nextSeq: null, nextRef: null }, busy: false };
   const $ = id => document.getElementById(id);
 
   function loadSettings(){
@@ -591,10 +602,11 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   $('settings').addEventListener('input', e => {
     const k = e.target.dataset.k; if (!k) return;
     settings[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    if (k === 'nextSeq' || k === 'nextRef') { const v = e.target.value.replace(/\D/g, ''); if (v !== e.target.value) e.target.value = v; settings[k] = v; }
     if (k === 'account') { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v !== e.target.value) e.target.value = v; settings[k] = v; }
     saveSettings(); rebuild();
+    if (k === 'account') { clearTimeout(acctTimer); acctTimer = setTimeout(() => { state.assigned = {}; refreshServer(); }, 500); }
   });
+  let acctTimer;
   $('resetSettings').addEventListener('click', () => {
     settings = Object.assign({}, C.DEFAULT_SETTINGS); saveSettings(); renderSettings(); rebuild(); toast('Settings reset');
   });
@@ -621,7 +633,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
         state.files.push({ name: f.name, type: 'error', rows: 0 });
       }
     }
-    renderFiles(); rebuild();
+    renderFiles(); rebuild(); lookupOrders();
   }
 
   function renderFiles(){
@@ -646,8 +658,10 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
       ? `${state.orders.length} order${state.orders.length===1?'':'s'} · ${ready.length} ready to convert`
       : 'No orders loaded';
     const noAcct = !C.accountId(settings);
-    $('zipAll').disabled = noAcct || !ready.length || typeof JSZip === 'undefined';
+    const off = noAcct || state.server.ok !== true || state.busy;
+    $('zipAll').disabled = off || !ready.length || typeof JSZip === 'undefined';
     $('acctWarn').hidden = !noAcct;
+    $('srvWarn').hidden = noAcct || state.server.ok !== false;
 
     if (!state.orders.length) {
       $('orders').innerHTML = `<div class="card empty">${state.files.length ? 'No orders found. Make sure you uploaded the Unshipped Orders report.' : 'Upload an Unshipped Orders report to see orders here.'}</div>`;
@@ -673,15 +687,17 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
         <div class="row">
           <div>
             <h3>${esc(o.orderId)}</h3>
-            <div class="meta">Header sequence <span class="mono">${state.assigned[o.orderId] ? esc(C.formatHeaderSeq(state.assigned[o.orderId].seq)) : 'given on download (next ' + esc(C.formatHeaderSeq(settings.nextSeq)) + ')'}</span></div>
+            <div class="meta">Header sequence <span class="mono">${state.assigned[o.orderId] ? esc(C.formatHeaderSeq(state.assigned[o.orderId].seq)) : 'given on download'}</span></div>
             <div class="meta">${esc(o.recipientName)} · ${esc([a.addr1, a.town, a.postcode].filter(Boolean).join(', '))} · ${o.lines.length} line${o.lines.length===1?'':'s'}</div>
           </div>
           <span class="spacer"></span>
           <button type="button" data-act="preview" ${o.lines.length?'':'disabled'}>Preview</button>
-          <button type="button" class="primary" data-act="download" ${o.lines.length && !noAcct?'':'disabled'}>Download ${esc(C.fileNameFor(o, settings))}</button>
+          <button type="button" class="primary" data-act="download" ${o.lines.length && !off?'':'disabled'}>Download ${esc(C.fileNameFor(o, settings))}</button>
         </div>
         ${(() => { const w = o.warnings.slice(); if (counts[C.fileNameFor(o, settings)] > 1) w.push('Another order today ends in the same 3 digits, so both get the same file name. Download them separately.');
           return w.length ? `<div class="warns"><ul>${w.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>` : ''; })()}
+        ${(() => { const as = state.assigned[o.orderId]; if (!as || !as.known) return '';
+          return `<div class="again"><span><strong>Already converted</strong> on ${esc(fmtDate(as.issued))} with sequence ${esc(C.formatHeaderSeq(as.seq))}. Downloading again uses the same numbers, so Gardners will treat a second copy as a duplicate.</span><button type="button" data-act="renew" ${off?'disabled':''}>Issue new numbers</button></div>`; })()}
         ${o.lines.length ? `<div class="tbl"><table><thead><tr><th>Line ref</th><th>ISBN</th><th>Title</th><th>Qty</th><th>Price £</th><th>Delivery £</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
         <pre hidden></pre>
       </div>`;
@@ -701,11 +717,10 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   $('orders').addEventListener('click', e => {
     const btn = e.target.closest('button[data-act]'); if (!btn) return;
     const card = btn.closest('.order'); const o = state.orders[+card.dataset.i];
-    if (btn.dataset.act === 'download') {
-      const a = assignSeq(o);
-      download(C.fileNameFor(o, settings), ordFor(o));
-      toast('Downloaded ' + C.fileNameFor(o, settings) + ' · sequence ' + C.formatHeaderSeq(a.seq));
-      afterAssign();
+    if (btn.dataset.act === 'download') downloadOne(o);
+    if (btn.dataset.act === 'renew') {
+      if (btn.dataset.confirm !== '1') { btn.dataset.confirm = '1'; btn.textContent = 'Click again to confirm'; return; }
+      renew(o);
     }
     if (btn.dataset.act === 'preview') {
       const pre = card.querySelector('pre');
@@ -719,24 +734,92 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     const n = {}; state.orders.forEach(o => { const f = C.fileNameFor(o, settings); n[f] = (n[f]||0) + 1; }); return n;
   }
 
-  // Each order gets the next header sequence, and each of its lines the next line references,
-  // once per session. Re-downloading the same order reuses its numbers, so a double-click
-  // can't send it twice under different numbers. Both counters run 1..999999999 then restart at 1.
-  function assignSeq(o){
-    if (state.assigned[o.orderId]) return state.assigned[o.orderId];
-    const seq = C.toSeq(settings.nextSeq);
-    const refs = C.refsFrom(settings.nextRef, o.lines.length);
-    state.assigned[o.orderId] = { seq, refs };
-    settings.nextSeq = String(seq + 1);
-    settings.nextRef = String(refs.length ? C.nextCounter(refs[refs.length - 1]) : C.toCounter(settings.nextRef));
-    saveSettings();
-    return state.assigned[o.orderId];
+  /* ---------- shared numbers (counter.php on the hosting) ---------- */
+  const API = 'counter.php';
+  async function api(body){
+    const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ account: C.accountId(settings) }, body)), cache: 'no-store', credentials: 'same-origin' });
+    const data = await res.json().catch(() => ({ ok: false, error: 'Unexpected reply from the number service' }));
+    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
   }
-  function afterAssign(){ renderSettings(); renderOrders(); }
+  function setServer(d){
+    state.server.ok = true;
+    if (d.nextSeq != null) state.server.nextSeq = d.nextSeq;
+    if (d.nextRef != null) state.server.nextRef = d.nextRef;
+    $('nSeq').value = state.server.nextSeq == null ? '' : C.formatHeaderSeq(state.server.nextSeq);
+    $('nRef').value = state.server.nextRef == null ? '' : C.formatSeq(state.server.nextRef);
+    $('srvStatus').textContent = 'Connected';
+  }
+  function serverDown(err){
+    state.server.ok = false;
+    $('srvStatus').textContent = 'Not connected: ' + err.message;
+    renderOrders();
+  }
+  async function refreshServer(){
+    if (!C.accountId(settings)) { state.server.ok = null; renderOrders(); return; }
+    try { setServer(await api({ action: 'status' })); await lookupOrders(); }
+    catch (e) { serverDown(e); }
+  }
+  // Mark orders that were already given numbers (on any computer)
+  async function lookupOrders(){
+    const ids = state.orders.filter(o => o.lines.length && !state.assigned[o.orderId]).map(o => o.orderId);
+    if (ids.length && state.server.ok) {
+      try {
+        const d = await api({ action: 'lookup', ids });
+        Object.keys(d.orders).forEach(id => {
+          const o = state.orders.find(x => x.orderId === id);
+          const r = d.orders[id];
+          if (o && r.refs.length === o.lines.length) state.assigned[id] = { seq: r.seq, refs: r.refs, issued: r.issued, known: true };
+        });
+      } catch (e) { serverDown(e); return; }
+    }
+    renderOrders();
+  }
+  // Get numbers from the server; orders that already have numbers keep them
+  async function reserve(orders, renewIds){
+    const d = await api({ action: 'reserve', orders: orders.map(o => ({ id: o.orderId, lines: o.lines.length })), renew: renewIds || [] });
+    Object.keys(d.orders).forEach(id => {
+      const r = d.orders[id];
+      state.assigned[id] = { seq: r.seq, refs: r.refs, issued: r.issued, known: r.reused };
+    });
+    setServer(d);
+  }
+  async function withBusy(fn){
+    state.busy = true; renderOrders();
+    try { await fn(); }
+    catch (e) { toast('Not downloaded: ' + e.message); if (/fetch|network/i.test(e.message)) serverDown(e); }
+    finally { state.busy = false; renderOrders(); }
+  }
+  function downloadOne(o){
+    return withBusy(async () => {
+      await reserve([o]);
+      download(C.fileNameFor(o, settings), ordFor(o));
+      toast('Downloaded ' + C.fileNameFor(o, settings) + ' · sequence ' + C.formatHeaderSeq(state.assigned[o.orderId].seq));
+    });
+  }
+  function renew(o){
+    return withBusy(async () => {
+      await reserve([o], [o.orderId]);
+      state.assigned[o.orderId].known = false;
+      toast('New numbers issued: sequence ' + C.formatHeaderSeq(state.assigned[o.orderId].seq));
+    });
+  }
+  function fmtDate(iso){
+    const d = new Date(iso); if (isNaN(d)) return 'an earlier date';
+    const p2 = n => String(n).padStart(2, '0');
+    return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+  }
+  $('saveNums').addEventListener('click', async () => {
+    try {
+      const d = await api({ action: 'set', nextSeq: $('nSeq').value.replace(/\D/g, ''), nextRef: $('nRef').value.replace(/\D/g, '') });
+      setServer(d); toast(d.message || 'Numbers saved');
+    } catch (e) { toast('Not saved: ' + e.message); }
+  });
+  ['nSeq', 'nRef'].forEach(id => $(id).addEventListener('input', e => { const v = e.target.value.replace(/\D/g, ''); if (v !== e.target.value) e.target.value = v; }));
 
   function ordFor(o){
     const a = state.assigned[o.orderId];
-    return C.renderOrd(o, settings, C.todayStr(), state.overrides, a ? a.seq : settings.nextSeq, a ? a.refs : null);
+    return C.renderOrd(o, settings, C.todayStr(), state.overrides, a ? a.seq : (state.server.nextSeq || 1), a ? a.refs : C.refsFrom(state.server.nextRef || 1, o.lines.length));
   }
 
   function download(name, text){
@@ -748,11 +831,15 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   }
 
   $('zipAll').addEventListener('click', async () => {
-    const zip = new JSZip();
     const ready = state.orders.filter(o => o.lines.length);
-    ready.forEach(o => { assignSeq(o); zip.file(C.fileNameFor(o, settings), ordFor(o)); });
-    afterAssign();
-    const blob = await zip.generateAsync({ type: 'blob' });
+    let blob;
+    await withBusy(async () => {
+      await reserve(ready);
+      const zip = new JSZip();
+      ready.forEach(o => zip.file(C.fileNameFor(o, settings), ordFor(o)));
+      blob = await zip.generateAsync({ type: 'blob' });
+    });
+    if (!blob) return;
     const d = new Date(), stamp = d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = `gardners-orders-${stamp}.zip`;
@@ -762,14 +849,14 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   });
 
   $('clear').addEventListener('click', () => {
-    state.files = []; state.orderRows.clear(); state.allRows.clear(); state.overrides = {};
+    state.files = []; state.orderRows.clear(); state.allRows.clear(); state.overrides = {}; state.assigned = {};
     renderFiles(); rebuild();
   });
 
 
   /* ---------- ownership notice (kept in place) ---------- */
   (function(){
-    const TEXT = 'Amazon Orders Converter v1.3 · © 2026 NS Nexus Limited. All rights reserved.';
+    const TEXT = 'Amazon Orders Converter v1.4 · © 2026 NS Nexus Limited. All rights reserved.';
     function ensure(){
       let foot = document.querySelector('footer.site-footer .wrap');
       if (!foot) {
@@ -787,7 +874,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     ensure();
     new MutationObserver(ensure).observe(document.body, { childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:['style','class','hidden'] });
   })();
-  renderSettings(); rebuild();
+  renderSettings(); rebuild(); refreshServer();
 })();
 </script>
 </body>
