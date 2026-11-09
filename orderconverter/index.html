@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Amazon Orders Converter v1.1
+  Amazon Orders Converter v1.2
   Copyright (c) 2026 NS Nexus Limited. All rights reserved.
   This software is the property of NS Nexus Limited.
 -->
@@ -161,7 +161,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
       <div class="row" style="margin-top:18px">
         <button type="button" id="resetSettings">Reset to defaults</button>
       </div>
-      <p class="hint">Settings, including the Gardners Account ID, are saved in this browser. Prices and delivery are written in pence (e.g. £9.99 → 999).</p>
+      <p class="hint">Settings, including the Gardners Account ID and the next sequence number, are saved in this browser. Prices and delivery are written in pence (e.g. £9.99 → 999).</p>
     </details>
   </div>
 
@@ -184,7 +184,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     <span class="brand">Readery</span>
     <span>Gardners i12 order format · one file per Amazon order</span>
     <span class="spacer"></span>
-    <span class="legal" id="legal">Amazon Orders Converter v1.1 · © 2026 NS Nexus Limited. All rights reserved.</span>
+    <span class="legal" id="legal">Amazon Orders Converter v1.2 · © 2026 NS Nexus Limited. All rights reserved.</span>
   </div>
 </footer>
 <div class="toast" id="toast"></div>
@@ -197,7 +197,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   const DEFAULT_SETTINGS = {
     account: 'NSN001',
     headerFlag: 'Y',
-    headerSeq: '000000001',
+    nextSeq: '1',
     detailFlag: '0',
     skuPrefix: 'BK-',
     serviceStandard: '001',
@@ -396,6 +396,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     for (const o of map.values()) {
       const w = o.warnings;
       if (!o.lines.length) w.push('Nothing left to ship on this order.');
+      if (o.lines.length > 35) w.push('More than 35 lines: line references after the 35th are not unique.');
       o.lines.forEach(l => {
         if (!l.isbnValid) w.push(`SKU "${l.sku}" doesn't give a valid ISBN (${l.isbn || 'empty'}).`);
         if (l.price === null) w.push(`No price found for ${l.sku}. Add the All Orders file or enter it below.`);
@@ -412,7 +413,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     return pad(d.getDate(), 2) + '/' + pad(d.getMonth() + 1, 2) + '/' + d.getFullYear();
   }
 
-  function renderOrd(order, settings, dateStr, overrides) {
+  function renderOrd(order, settings, dateStr, overrides, seq) {
     overrides = overrides || {};
     const c = v => clean(v, settings);
     const q = v => '"' + c(v) + '"';
@@ -428,12 +429,12 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     const sms = tracking && settings.useContactForTracking ? (r['buyer-phone-number'] || '').replace(/\s+/g, '') : '';
 
     const out = [];
-    out.push(`"HEADER",${q(accountId(settings))},${q(dateStr || todayStr())},${q(settings.headerFlag)},${q(settings.headerSeq)}`);
+    out.push(`"HEADER",${q(accountId(settings))},${q(dateStr || todayStr())},${q(settings.headerFlag)},${q(formatSeq(seq || settings.nextSeq))}`);
     order.lines.forEach((l, i) => {
       const ov = overrides[l.key] || {};
       const price = ov.price !== undefined ? ov.price : (l.price === null ? 0 : l.price);
       const delivery = ov.delivery !== undefined ? ov.delivery : l.delivery;
-      out.push(`"DETAIL",${pad(i + 1, 9)},${q(refFor(order.orderId))},${q(l.isbn)},${l.qty},${num(settings.detailFlag)}`);
+      out.push(`"DETAIL",${pad(i + 1, 9)},${q(lineRef(order.orderId, i + 1))},${q(l.isbn)},${l.qty},${num(settings.detailFlag)}`);
       out.push(`"TITLENAME",${q(inv.title)}`);
       out.push(`"INITIALS",${q(inv.initials)}`);
       out.push(`"INAME",${q(inv.surname)}`);
@@ -481,6 +482,23 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     return m ? m[1] : id.slice(-15);
   }
 
+  // Unique reference per order line (Gardners: unique for every line ever placed, max 15 chars):
+  // the 14 digits of the Amazon order after the first block + the line number (1-9, then A-Z)
+  // e.g. 205-4103535-3853118, line 2 -> 410353538531182
+  const LINE_CODES = '123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  function lineRef(orderId, lineNo) {
+    const id = String(orderId || '').trim();
+    const m = id.match(/^\d{3}-(\d{7})-(\d{7})$/);
+    const base = m ? m[1] + m[2] : id.replace(/[^A-Za-z0-9]/g, '').slice(-14);
+    return base + (LINE_CODES[lineNo - 1] || '0');
+  }
+
+  // Header sequence: 9-digit running number, unique for every order file
+  function formatSeq(n) {
+    const v = parseInt(String(n || '').replace(/\D/g, ''), 10);
+    return pad(isNaN(v) || v < 1 ? 1 : v, 9);
+  }
+
   // File name: NSN001 + DDMMYY (today) + last 3 digits of the Amazon order ID
   function fileNameFor(order, settings, d) {
     d = d || new Date();
@@ -491,7 +509,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 
   const api = {
     DEFAULT_SETTINGS, decodeBuffer, parseTsv, detectType, buildPriceIndex, buildOrders,
-    renderOrd, fileNameFor, refFor, accountId, DEFAULT_ACCOUNT, todayStr, splitName, buildAddress, isValidIsbn, skuToIsbn
+    renderOrd, fileNameFor, refFor, lineRef, formatSeq, accountId, DEFAULT_ACCOUNT, todayStr, splitName, buildAddress, isValidIsbn, skuToIsbn
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OrdConverter = api;
@@ -507,7 +525,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   const FIELDS = [
     ['account','Gardners Account ID','text'],
     ['headerFlag','Header flag','text'],
-    ['headerSeq','Header sequence','text'],
+    ['nextSeq','Next sequence number','text'],
     ['detailFlag','Detail last field','text'],
     ['skuPrefix','SKU prefix to remove','text'],
     ['serviceStandard','Service code: Standard','text'],
@@ -528,7 +546,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   ];
 
   let settings = loadSettings();
-  const state = { files: [], orderRows: new Map(), allRows: new Map(), overrides: {}, orders: [] };
+  const state = { files: [], orderRows: new Map(), allRows: new Map(), overrides: {}, orders: [], assigned: {} };
   const $ = id => document.getElementById(id);
 
   function loadSettings(){
@@ -560,6 +578,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   $('settings').addEventListener('input', e => {
     const k = e.target.dataset.k; if (!k) return;
     settings[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    if (k === 'nextSeq') { const v = e.target.value.replace(/\D/g, ''); if (v !== e.target.value) e.target.value = v; settings[k] = v; }
     if (k === 'account') { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v !== e.target.value) e.target.value = v; settings[k] = v; }
     saveSettings(); rebuild();
   });
@@ -624,11 +643,12 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     const counts = nameCounts();
     $('orders').innerHTML = state.orders.map((o, i) => {
       const a = o.address;
-      const rows = o.lines.map(l => {
+      const rows = o.lines.map((l, li) => {
         const ov = state.overrides[l.key] || {};
         const price = ov.price !== undefined ? ov.price : l.price;
         const del = ov.delivery !== undefined ? ov.delivery : l.delivery;
         return `<tr>
+          <td class="mono">${esc(C.lineRef(o.orderId, li + 1))}</td>
           <td class="mono ${l.isbnValid?'':'bad-isbn'}">${esc(l.isbn || '—')}</td>
           <td class="t" title="${esc(l.title)}">${esc(l.title)}</td>
           <td>${l.qty}</td>
@@ -640,7 +660,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
         <div class="row">
           <div>
             <h3>${esc(o.orderId)}</h3>
-            <div class="meta">Gardners ref <span class="mono">${esc(C.refFor(o.orderId))}</span></div>
+            <div class="meta">Header sequence <span class="mono">${state.assigned[o.orderId] ? esc(C.formatSeq(state.assigned[o.orderId])) : 'given on download (next ' + esc(C.formatSeq(settings.nextSeq)) + ')'}</span></div>
             <div class="meta">${esc(o.recipientName)} · ${esc([a.addr1, a.town, a.postcode].filter(Boolean).join(', '))} · ${o.lines.length} line${o.lines.length===1?'':'s'}</div>
           </div>
           <span class="spacer"></span>
@@ -649,7 +669,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
         </div>
         ${(() => { const w = o.warnings.slice(); if (counts[C.fileNameFor(o, settings)] > 1) w.push('Another order today ends in the same 3 digits, so both get the same file name. Download them separately.');
           return w.length ? `<div class="warns"><ul>${w.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>` : ''; })()}
-        ${o.lines.length ? `<div class="tbl"><table><thead><tr><th>ISBN</th><th>Title</th><th>Qty</th><th>Price £</th><th>Delivery £</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
+        ${o.lines.length ? `<div class="tbl"><table><thead><tr><th>Line ref</th><th>ISBN</th><th>Title</th><th>Qty</th><th>Price £</th><th>Delivery £</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
         <pre hidden></pre>
       </div>`;
     }).join('');
@@ -668,7 +688,12 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   $('orders').addEventListener('click', e => {
     const btn = e.target.closest('button[data-act]'); if (!btn) return;
     const card = btn.closest('.order'); const o = state.orders[+card.dataset.i];
-    if (btn.dataset.act === 'download') { download(C.fileNameFor(o, settings), ordFor(o)); toast('Downloaded ' + C.fileNameFor(o, settings)); }
+    if (btn.dataset.act === 'download') {
+      const seq = assignSeq(o);
+      download(C.fileNameFor(o, settings), ordFor(o, seq));
+      toast('Downloaded ' + C.fileNameFor(o, settings) + ' · sequence ' + C.formatSeq(seq));
+      afterAssign();
+    }
     if (btn.dataset.act === 'preview') {
       const pre = card.querySelector('pre');
       pre.hidden = !pre.hidden;
@@ -681,7 +706,19 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     const n = {}; state.orders.forEach(o => { const f = C.fileNameFor(o, settings); n[f] = (n[f]||0) + 1; }); return n;
   }
 
-  function ordFor(o){ return C.renderOrd(o, settings, C.todayStr(), state.overrides); }
+  // Header sequence: each order gets the next number once per session; re-downloading the
+  // same order reuses its number, so a double-click can't send it twice under different numbers
+  function assignSeq(o){
+    if (state.assigned[o.orderId]) return state.assigned[o.orderId];
+    const n = parseInt(C.formatSeq(settings.nextSeq), 10);
+    state.assigned[o.orderId] = n;
+    settings.nextSeq = String(n + 1);
+    saveSettings();
+    return n;
+  }
+  function afterAssign(){ renderSettings(); renderOrders(); }
+
+  function ordFor(o, seq){ return C.renderOrd(o, settings, C.todayStr(), state.overrides, seq || state.assigned[o.orderId] || settings.nextSeq); }
 
   function download(name, text){
     const blob = new Blob([text], { type: 'text/plain' });
@@ -694,7 +731,8 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   $('zipAll').addEventListener('click', async () => {
     const zip = new JSZip();
     const ready = state.orders.filter(o => o.lines.length);
-    ready.forEach(o => zip.file(C.fileNameFor(o, settings), ordFor(o)));
+    ready.forEach(o => { const seq = assignSeq(o); zip.file(C.fileNameFor(o, settings), ordFor(o, seq)); });
+    afterAssign();
     const blob = await zip.generateAsync({ type: 'blob' });
     const d = new Date(), stamp = d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
     const url = URL.createObjectURL(blob);
@@ -712,7 +750,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 
   /* ---------- ownership notice (kept in place) ---------- */
   (function(){
-    const TEXT = 'Amazon Orders Converter v1.1 · © 2026 NS Nexus Limited. All rights reserved.';
+    const TEXT = 'Amazon Orders Converter v1.2 · © 2026 NS Nexus Limited. All rights reserved.';
     function ensure(){
       let foot = document.querySelector('footer.site-footer .wrap');
       if (!foot) {

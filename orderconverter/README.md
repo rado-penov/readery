@@ -1,6 +1,6 @@
 # Amazon Orders Converter
 
-**Version 1.1** · © 2026 NS Nexus Limited. All rights reserved.
+**Version 1.2** · © 2026 NS Nexus Limited. All rights reserved.
 
 A single-page web tool that turns Amazon Seller Central order reports into
 Gardners **i12 `.ORD`** order files: one file per Amazon order, ready to send to
@@ -28,7 +28,9 @@ Live at: `https://readery.co.uk/orderconverter/`
 |---|---|
 | `HEADER` account | **Gardners Account ID** from Settings (default `NSN001`) |
 | `HEADER` date | Today, `DD/MM/YYYY` |
-| `DETAIL` reference | Amazon order ID without its first block: `204-6947430-4469161` → `6947430-4469161` (max 15 chars) |
+| `HEADER` sequence | Running 9-digit number, unique for every order file (`000000001`, `000000002`, …). Stored in the browser as **Next sequence number** in Settings |
+| `DETAIL` line number | `000000001`, `000000002`, … within each file |
+| `DETAIL` reference | Unique per order line: the 14 digits after the first block of the Amazon order ID + the line number (1-9, then A-Z). `205-4103535-3853118` → `410353538531181`, `410353538531182` |
 | `DETAIL` ISBN | Amazon `sku` with the prefix removed (default `BK-`) and validated as ISBN-10/13 |
 | `DETAIL` quantity | `quantity-to-ship` (falls back to `quantity-purchased`) |
 | `TITLENAME` / `INITIALS` / `INAME` | Split from `buyer-name` (`D…` fields from `recipient-name`) |
@@ -99,11 +101,16 @@ See `Gardners-i12-questions.txt`. In short:
 - Meaning of the `HEADER` 4th field (`Y`) and the last `DETAIL` field (`0`)
 - Full list of `SERVICE` codes (tracked, signed-for, next-day)
 - Unit and behaviour of `MAXWAIT`
-- Whether each `DETAIL` line needs a unique reference
 - Whether `PRICE` / `DELIVERY` print on the despatch note
 - The sender address for tracking emails (to register in Seller Central)
 
 ## Changelog
+
+**v1.2**
+- Header sequence is a running number, unique for every order file (Gardners duplication check)
+- Unique reference for every order line: order digits + line number (Gardners requirement)
+- Settings: "Header sequence" replaced by "Next sequence number"
+- Order cards show the header sequence and each line's reference
 
 **v1.1**
 - Gardners Account ID is now a setting (default `NSN001`), so other companies can use the converter
