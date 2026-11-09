@@ -1,0 +1,61 @@
+QUESTIONS FOR GARDNERS - i12 ORDER FILE (.ORD)
+Account: NSN001 (NS Nexus Limited / Readery)
+Prepared: 09/11/2026
+
+Context: We generate one i12 .ORD file per customer order from our Amazon
+orders, based on the single-line and multi-line sample files you supplied.
+Before sending live orders, please confirm the points below.
+
+
+1. HEADER RECORD - 4TH FIELD ("Y")
+   Example: "HEADER","NSN001","09/11/2026","Y","000000001"
+   - What does the 4th field mean?
+   - What values are allowed, and what does each do?
+   - Does any value mark the file as a test rather than a live order?
+
+2. DETAIL RECORD - LAST FIELD ("0")
+   Example: "DETAIL",000000001,"6947430-4469161","9780099530398",1,0
+   - What does the final field (after the quantity) mean?
+   - What values are allowed? (e.g. back-order, substitution, priority?)
+
+3. SERVICE CODES
+   Example: "SERVICE",001
+   - Please send the full list of SERVICE codes.
+   - Which codes are tracked, signed-for, and next-day?
+   - What is the cost of each service?
+   - How do SERVICE, TRACKING and SIGNATURE work together?
+     (Do TRACKING = "Y" or SIGNATURE = "Y" require a specific code?)
+
+4. MAXWAIT
+   Example: "MAXWAIT",1
+   - What unit is MAXWAIT in (days, or a code)?
+   - What happens when it runs out: cancel, part-ship, or hold?
+   - What is the maximum value allowed?
+
+5. ORDER REFERENCE ON MULTI-LINE ORDERS
+   Your multi-line sample uses a different reference on each DETAIL line
+   (ABB001323, ABB001324). We repeat the same reference on every line of
+   one customer order (e.g. 4103535-3853118).
+   - Does each DETAIL line need a unique reference, or can lines in the
+     same order share one?
+   - Please confirm the maximum reference length is 15 characters.
+
+6. PRICE AND DELIVERY
+   Example: "PRICE",999   "DELIVERY",0
+   - Are PRICE and DELIVERY printed on the despatch note?
+   - Are they in pence, and should they include VAT?
+   - Can they be left at 0 if we prefer not to show prices?
+
+7. TRACKING NOTIFICATIONS
+   We send the customer's Amazon email (an @marketplace.amazon.co.uk relay
+   address) in TRACKINGEMAIL.
+   - Which email address are your tracking notifications sent from?
+     (Amazon only forwards messages from addresses registered on our
+     Seller Central account.)
+
+8. FILE SUBMISSION
+   - How should we submit .ORD files (portal upload, FTP, or email)?
+   - Is one order per file acceptable?
+   - Are there file naming rules? (Ours: NSN001 + DDMMYY + last 3 digits
+     of the order number, e.g. NSN001091126161.ORD)
+   - What is the cut-off time for same-day despatch?

@@ -1,0 +1,432 @@
+<!doctype html>
+<!--
+  Amazon Orders Converter v1.1
+  Copyright (c) 2026 NS Nexus Limited. All rights reserved.
+  This software is the property of NS Nexus Limited.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Order converter — Readery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400..600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cloth:#24483F;--cloth-dk:#1B3730;--gilt:#C8A24B;--ink:#1A1F1C;--muted:#56615A;
+  --paper:#EEF1EA;--paper-hi:#F8F9F5;--ribbon:#C4302B;--rule:#CCD3C9;
+  --sans:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --serif:"Literata",Georgia,"Times New Roman",serif;
+  --wrap:1240px;
+  --warn:#7A5A12;--warn-bg:#F6EED8;--err:#C4302B;--err-bg:#F7E3E1;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 17px/1.6 var(--serif);min-height:100vh;display:flex;flex-direction:column}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 28px;width:100%}
+.wrap{max-width:1040px}
+main.wrap{flex:1}
+.order > .row > div{flex:1 1 320px}
+
+/* header (matches readery.co.uk) */
+.site-header{background:var(--paper);border-bottom:1px solid var(--rule);position:sticky;top:0;z-index:10}
+.bar{display:flex;align-items:center;gap:24px;height:76px}
+.brand{font:500 32px/1 var(--serif);letter-spacing:-.02em;color:var(--ink);text-decoration:none}
+.tool-tag{font:500 13px/1 var(--sans);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding-left:24px;border-left:1px solid var(--rule);height:28px;display:flex;align-items:center}
+.bar .spacer{flex:1}
+.back{font:500 15px/1 var(--sans);color:var(--muted);text-decoration:none}
+.back:hover{color:var(--ink)}
+
+/* intro */
+.intro{padding:56px 0 32px;display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:end}
+.eyebrow{font:600 13px/1 var(--sans);text-transform:uppercase;letter-spacing:.1em;color:var(--cloth);margin:0 0 16px}
+h1{margin:0;font:500 clamp(40px,6vw,68px)/.98 var(--serif);letter-spacing:-.025em}
+.sub{margin:0;color:var(--muted);font-size:17px}
+
+/* panels */
+.card{background:var(--paper-hi);border:1px solid var(--rule);border-radius:4px;padding:22px;margin-bottom:16px}
+.section-title{font:500 26px/1.2 var(--serif);letter-spacing:-.015em;margin:36px 0 14px}
+.drop{border:1.5px dashed var(--muted);border-radius:4px;padding:36px 16px;text-align:center;cursor:pointer;transition:background .15s,border-color .15s;background:var(--paper)}
+.drop:hover,.drop.over,.drop:focus-visible{border-color:var(--cloth);background:#E3EAE3;outline:none}
+.drop strong{display:block;font:500 22px/1.3 var(--serif);margin-bottom:6px}
+.drop span{color:var(--muted);font:400 15px/1.4 var(--sans)}
+.files{list-style:none;padding:0;margin:14px 0 0;display:flex;flex-direction:column;gap:8px}
+.files:empty{display:none}
+.files li{display:flex;gap:10px;align-items:center;font:400 15px/1.4 var(--sans);flex-wrap:wrap}
+.badge{font:600 12px/1 var(--sans);padding:5px 9px;border-radius:3px;background:var(--cloth);color:var(--paper-hi);letter-spacing:.02em}
+.badge.bad{background:var(--ribbon)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+
+/* buttons (readery .btn) */
+button{display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:4px;font:500 15px/1 var(--sans);cursor:pointer;border:1.5px solid var(--ink);background:transparent;color:var(--ink);transition:background .15s,color .15s}
+button:hover{background:var(--ink);color:var(--paper-hi)}
+button.primary{background:var(--ink);color:var(--paper-hi)}
+button.primary:hover{background:var(--cloth);border-color:var(--cloth)}
+#zipAll{background:var(--cloth);border-color:var(--cloth);color:var(--paper-hi)}
+#zipAll:hover:not(:disabled){background:var(--cloth-dk);border-color:var(--cloth-dk)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button:disabled:hover{background:transparent;color:var(--ink)}
+button.primary:disabled:hover{background:var(--ink);color:var(--paper-hi);border-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(36,72,63,.25)}
+
+/* settings */
+details summary{cursor:pointer;font:500 20px/1.3 var(--serif);list-style:none;display:flex;align-items:center;gap:10px}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"+";font:500 20px/1 var(--sans);color:var(--cloth);width:14px}
+details[open] summary::before{content:"\2212"}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:18px}
+label{display:flex;flex-direction:column;gap:6px;font:500 13px/1.3 var(--sans);color:var(--muted)}
+label.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-weight:400;font-size:15px}
+input,select{font:400 15px/1 var(--sans);color:var(--ink);background:var(--paper-hi);border:1.5px solid var(--rule);border-radius:4px;padding:0 10px;height:40px;width:100%}
+input:focus,select:focus{border-color:var(--cloth)}
+label.chk input{width:18px;height:18px;accent-color:var(--cloth)}
+.hint{font:400 14px/1.5 var(--sans);color:var(--muted);margin:14px 0 0}
+
+/* summary bar */
+#summary{font:500 20px/1.3 var(--serif)}
+
+/* order cards */
+.order{border-top:4px solid var(--cloth)}
+.order h3{margin:0;font:500 22px/1.2 var(--serif);letter-spacing:-.01em}
+.meta{color:var(--muted);font:400 15px/1.5 var(--sans)}
+.meta .mono{color:var(--ink)}
+.warns{margin:14px 0 0;padding:12px 14px;border-radius:4px;background:var(--warn-bg);color:var(--warn);font:400 15px/1.5 var(--sans);border-left:3px solid var(--gilt)}
+.warns ul{margin:0;padding-left:18px}
+.tbl{width:100%;overflow-x:auto;margin-top:14px}
+table{border-collapse:collapse;width:100%;font:400 15px/1.4 var(--sans)}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--rule);vertical-align:middle}
+th{color:var(--muted);font:600 12px/1 var(--sans);text-transform:uppercase;letter-spacing:.07em}
+td.t{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--serif)}
+td input{width:92px;height:36px}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:.92em}
+.bad-isbn{color:var(--err);font-weight:600}
+pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:14px;font:400 12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;overflow:auto;max-height:420px;margin:14px 0 0}
+.empty{color:var(--muted);text-align:center;padding:36px 0;font-style:italic}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper-hi);padding:12px 18px;border-radius:4px;font:500 15px/1 var(--sans);opacity:0;transition:.2s;pointer-events:none;z-index:20}
+.toast.on{opacity:1}
+
+/* footer (matches readery.co.uk) */
+.site-footer{background:var(--cloth);color:#DCE5DF;margin-top:64px;padding:40px 0 32px;font:400 15px/1.6 var(--sans)}
+.site-footer .wrap{display:flex;gap:24px;flex-wrap:wrap;align-items:baseline}
+.site-footer .brand{color:var(--paper-hi);font-size:26px}
+.site-footer a{color:#DCE5DF}
+.site-footer .spacer{flex:1}
+.site-footer .legal{color:var(--paper-hi);font-weight:500}
+
+@media (max-width:720px){
+  .wrap{padding:0 16px}
+  .tool-tag,.back{display:none}
+  .intro{grid-template-columns:1fr;gap:16px;padding:36px 0 24px}
+  .card{padding:16px}
+  .order .row > button{flex:1;justify-content:center}
+}
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="/" aria-label="Readery home">Readery</a>
+    <span class="tool-tag">Trade tools</span>
+    <span class="spacer"></span>
+    <a class="back" href="/">Back to shop</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <div>
+      <p class="eyebrow">Order converter</p>
+      <h1>Amazon orders, ready for Gardners.</h1>
+    </div>
+    <p class="sub">Upload the Amazon order reports and download one Gardners i12 <span class="mono">.ORD</span> file per order. Everything runs in your browser; no order data is sent to the server.</p>
+  </section>
+
+  <div class="card">
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose Amazon report files">
+      <strong>Drop Amazon report files here, or click to choose</strong>
+      <span>Unshipped Orders report (required) · All Orders report (optional, adds prices)</span>
+    </div>
+    <input type="file" id="file" accept=".txt,.tsv,.csv,text/plain" multiple hidden>
+    <ul class="files" id="files"></ul>
+  </div>
+
+  <div class="card">
+    <details id="settingsBox">
+      <summary>Settings</summary>
+      <div class="grid" id="settings"></div>
+      <div class="row" style="margin-top:18px">
+        <button type="button" id="resetSettings">Reset to defaults</button>
+      </div>
+      <p class="hint">Settings, including the Gardners Account ID, are saved in this browser. Prices and delivery are written in pence (e.g. £9.99 → 999).</p>
+    </details>
+  </div>
+
+  <h2 class="section-title">Orders</h2>
+  <div class="card warns" id="acctWarn" hidden>Enter your Gardners Account ID in Settings to enable downloads.</div>
+  <div class="card">
+    <div class="row">
+      <span id="summary">No orders loaded</span>
+      <span class="spacer"></span>
+      <button type="button" id="clear">Clear</button>
+      <button type="button" id="zipAll" disabled>Download all (.zip)</button>
+    </div>
+  </div>
+
+  <div id="orders"><div class="card empty">Upload an Unshipped Orders report to see orders here.</div></div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span class="brand">Readery</span>
+    <span>Gardners i12 order format · one file per Amazon order</span>
+    <span class="spacer"></span>
+    <span class="legal" id="legal">Amazon Orders Converter v1.1 · © 2026 NS Nexus Limited. All rights reserved.</span>
+  </div>
+</footer>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+(function(){
+  'use strict';
+  const C = window.OrdConverter;
+  const KEY = 'gardnersOrdSettings.v2';
+  const OLD_KEY = 'gardnersOrdSettings.v1';
+  const FIELDS = [
+    ['account','Gardners Account ID','text'],
+    ['headerFlag','Header flag','text'],
+    ['headerSeq','Header sequence','text'],
+    ['detailFlag','Detail last field','text'],
+    ['skuPrefix','SKU prefix to remove','text'],
+    ['serviceStandard','Service code: Standard','text'],
+    ['serviceExpedited','Service code: Expedited/other','text'],
+    ['maxWait','MAXWAIT','text'],
+    ['giftwrap','Gift wrap','yn'],
+    ['signature','Signature','yn'],
+    ['tracking','Tracking','yn'],
+    ['trackingSafePlace','Tracking safe place','text'],
+    ['batchRef','Batch ref','text'],
+    ['comm1','Message line 1 (COMM1)','text'],
+    ['comm2','Message line 2 (COMM2)','text'],
+    ['comm3','Message line 3 (COMM3)','text'],
+    ['comm4','Message line 4 (COMM4)','text'],
+    ['useContactForTracking','Send buyer phone (SMS) when tracking = Y','chk'],
+    ['asciiOnly','Remove accents / non‑ASCII characters','chk'],
+    ['crlf','Windows line endings (CRLF)','chk']
+  ];
+
+  let settings = loadSettings();
+  const state = { files: [], orderRows: new Map(), allRows: new Map(), overrides: {}, orders: [] };
+  const $ = id => document.getElementById(id);
+
+  function loadSettings(){
+    let saved = {};
+    try {
+      const v2 = localStorage.getItem(KEY);
+      if (v2) saved = JSON.parse(v2) || {};
+      else {
+        // carry over settings from v1, but not its old account code
+        saved = JSON.parse(localStorage.getItem(OLD_KEY) || '{}') || {};
+        delete saved.account;
+      }
+    } catch(e) {}
+    return Object.assign({}, C.DEFAULT_SETTINGS, saved);
+  }
+  function saveSettings(){ try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch(e) {} }
+
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),2200); }
+
+  /* ---------- settings UI ---------- */
+  function renderSettings(){
+    $('settings').innerHTML = FIELDS.map(([k,label,type]) => {
+      if (type === 'chk') return `<label class="chk"><input type="checkbox" data-k="${k}" ${settings[k]?'checked':''}> ${esc(label)}</label>`;
+      if (type === 'yn') return `<label>${esc(label)}<select data-k="${k}"><option value="N" ${settings[k]==='N'?'selected':''}>N</option><option value="Y" ${settings[k]==='Y'?'selected':''}>Y</option></select></label>`;
+      return `<label>${esc(label)}<input type="text" data-k="${k}" value="${esc(settings[k])}"${k==='account'?' maxlength="10" autocomplete="off" placeholder="e.g. NSN001"':''}></label>`;
+    }).join('');
+  }
+  $('settings').addEventListener('input', e => {
+    const k = e.target.dataset.k; if (!k) return;
+    settings[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    if (k === 'account') { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v !== e.target.value) e.target.value = v; settings[k] = v; }
+    saveSettings(); rebuild();
+  });
+  $('resetSettings').addEventListener('click', () => {
+    settings = Object.assign({}, C.DEFAULT_SETTINGS); saveSettings(); renderSettings(); rebuild(); toast('Settings reset');
+  });
+
+  /* ---------- file loading ---------- */
+  const drop = $('drop'), fileInput = $('file');
+  drop.addEventListener('click', () => fileInput.click());
+  drop.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); fileInput.click(); } });
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); handleFiles(e.dataTransfer.files); });
+  fileInput.addEventListener('change', () => { handleFiles(fileInput.files); fileInput.value=''; });
+
+  async function handleFiles(list){
+    for (const f of Array.from(list)) {
+      try {
+        const text = C.decodeBuffer(await f.arrayBuffer());
+        const parsed = C.parseTsv(text);
+        const type = C.detectType(parsed.headers);
+        if (type === 'orders') parsed.rows.forEach(r => state.orderRows.set(r['order-id']+'|'+(r['order-item-id']||r['sku']), r));
+        if (type === 'allorders') parsed.rows.forEach(r => state.allRows.set(r['amazon-order-id']+'|'+(r['order-item-id']||r['sku']), r));
+        state.files.push({ name: f.name, type, rows: parsed.rows.length });
+      } catch (err) {
+        state.files.push({ name: f.name, type: 'error', rows: 0 });
+      }
+    }
+    renderFiles(); rebuild();
+  }
+
+  function renderFiles(){
+    const labels = { orders:'Unshipped / New Orders', allorders:'All Orders (prices)', unknown:'Not recognised', error:'Could not read' };
+    $('files').innerHTML = state.files.map(f =>
+      `<li><span class="badge ${f.type==='orders'||f.type==='allorders'?'':'bad'}">${labels[f.type]}</span><span class="mono">${esc(f.name)}</span><span class="meta">${f.rows} row${f.rows===1?'':'s'}</span></li>`
+    ).join('');
+  }
+
+  /* ---------- orders ---------- */
+  function rebuild(){
+    const idx = C.buildPriceIndex(Array.from(state.allRows.values()));
+    state.orders = C.buildOrders(Array.from(state.orderRows.values()), idx, settings);
+    renderOrders();
+  }
+
+  function gbp(p){ return p == null ? '' : (p/100).toFixed(2); }
+
+  function renderOrders(){
+    const ready = state.orders.filter(o => o.lines.length);
+    $('summary').textContent = state.orders.length
+      ? `${state.orders.length} order${state.orders.length===1?'':'s'} · ${ready.length} ready to convert`
+      : 'No orders loaded';
+    const noAcct = !C.accountId(settings);
+    $('zipAll').disabled = noAcct || !ready.length || typeof JSZip === 'undefined';
+    $('acctWarn').hidden = !noAcct;
+
+    if (!state.orders.length) {
+      $('orders').innerHTML = `<div class="card empty">${state.files.length ? 'No orders found. Make sure you uploaded the Unshipped Orders report.' : 'Upload an Unshipped Orders report to see orders here.'}</div>`;
+      return;
+    }
+    const counts = nameCounts();
+    $('orders').innerHTML = state.orders.map((o, i) => {
+      const a = o.address;
+      const rows = o.lines.map(l => {
+        const ov = state.overrides[l.key] || {};
+        const price = ov.price !== undefined ? ov.price : l.price;
+        const del = ov.delivery !== undefined ? ov.delivery : l.delivery;
+        return `<tr>
+          <td class="mono ${l.isbnValid?'':'bad-isbn'}">${esc(l.isbn || '—')}</td>
+          <td class="t" title="${esc(l.title)}">${esc(l.title)}</td>
+          <td>${l.qty}</td>
+          <td><input type="number" step="0.01" min="0" inputmode="decimal" data-key="${esc(l.key)}" data-f="price" value="${gbp(price)}" placeholder="0.00" aria-label="Price £"></td>
+          <td><input type="number" step="0.01" min="0" inputmode="decimal" data-key="${esc(l.key)}" data-f="delivery" value="${gbp(del)}" placeholder="0.00" aria-label="Delivery £"></td>
+        </tr>`;
+      }).join('');
+      return `<div class="card order" data-i="${i}">
+        <div class="row">
+          <div>
+            <h3>${esc(o.orderId)}</h3>
+            <div class="meta">Gardners ref <span class="mono">${esc(C.refFor(o.orderId))}</span></div>
+            <div class="meta">${esc(o.recipientName)} · ${esc([a.addr1, a.town, a.postcode].filter(Boolean).join(', '))} · ${o.lines.length} line${o.lines.length===1?'':'s'}</div>
+          </div>
+          <span class="spacer"></span>
+          <button type="button" data-act="preview" ${o.lines.length?'':'disabled'}>Preview</button>
+          <button type="button" class="primary" data-act="download" ${o.lines.length && !noAcct?'':'disabled'}>Download ${esc(C.fileNameFor(o, settings))}</button>
+        </div>
+        ${(() => { const w = o.warnings.slice(); if (counts[C.fileNameFor(o, settings)] > 1) w.push('Another order today ends in the same 3 digits, so both get the same file name. Download them separately.');
+          return w.length ? `<div class="warns"><ul>${w.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>` : ''; })()}
+        ${o.lines.length ? `<div class="tbl"><table><thead><tr><th>ISBN</th><th>Title</th><th>Qty</th><th>Price £</th><th>Delivery £</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
+        <pre hidden></pre>
+      </div>`;
+    }).join('');
+  }
+
+  $('orders').addEventListener('input', e => {
+    const key = e.target.dataset.key; if (!key) return;
+    const v = e.target.value.trim();
+    const ov = state.overrides[key] = state.overrides[key] || {};
+    if (v === '') delete ov[e.target.dataset.f];
+    else ov[e.target.dataset.f] = Math.round(parseFloat(v) * 100) || 0;
+    const card = e.target.closest('.order'); const pre = card.querySelector('pre');
+    if (!pre.hidden) pre.textContent = ordFor(state.orders[+card.dataset.i]);
+  });
+
+  $('orders').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]'); if (!btn) return;
+    const card = btn.closest('.order'); const o = state.orders[+card.dataset.i];
+    if (btn.dataset.act === 'download') { download(C.fileNameFor(o, settings), ordFor(o)); toast('Downloaded ' + C.fileNameFor(o, settings)); }
+    if (btn.dataset.act === 'preview') {
+      const pre = card.querySelector('pre');
+      pre.hidden = !pre.hidden;
+      btn.textContent = pre.hidden ? 'Preview' : 'Hide preview';
+      if (!pre.hidden) pre.textContent = ordFor(o);
+    }
+  });
+
+  function nameCounts(){
+    const n = {}; state.orders.forEach(o => { const f = C.fileNameFor(o, settings); n[f] = (n[f]||0) + 1; }); return n;
+  }
+
+  function ordFor(o){ return C.renderOrd(o, settings, C.todayStr(), state.overrides); }
+
+  function download(name, text){
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  $('zipAll').addEventListener('click', async () => {
+    const zip = new JSZip();
+    const ready = state.orders.filter(o => o.lines.length);
+    ready.forEach(o => zip.file(C.fileNameFor(o, settings), ordFor(o)));
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const d = new Date(), stamp = d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `gardners-orders-${stamp}.zip`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast(`Downloaded ${ready.length} order file${ready.length===1?'':'s'}`);
+  });
+
+  $('clear').addEventListener('click', () => {
+    state.files = []; state.orderRows.clear(); state.allRows.clear(); state.overrides = {};
+    renderFiles(); rebuild();
+  });
+
+
+  /* ---------- ownership notice (kept in place) ---------- */
+  (function(){
+    const TEXT = 'Amazon Orders Converter v1.1 · © 2026 NS Nexus Limited. All rights reserved.';
+    function ensure(){
+      let foot = document.querySelector('footer.site-footer .wrap');
+      if (!foot) {
+        const f = document.createElement('footer'); f.className = 'site-footer';
+        foot = document.createElement('div'); foot.className = 'wrap'; f.appendChild(foot); document.body.appendChild(f);
+      }
+      let el = document.getElementById('legal');
+      if (!el || !foot.contains(el)) { el = document.createElement('span'); el.id = 'legal'; el.className = 'legal'; foot.appendChild(el); }
+      if (el.textContent !== TEXT) el.textContent = TEXT;
+      if (el.hasAttribute('hidden')) el.removeAttribute('hidden');
+      if (el.className !== 'legal') el.className = 'legal';
+      const want = 'display: inline !important; visibility: visible !important; opacity: 1 !important;';
+      if (el.getAttribute('style') !== want) el.setAttribute('style', want);
+    }
+    ensure();
+    new MutationObserver(ensure).observe(document.body, { childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:['style','class','hidden'] });
+  })();
+  renderSettings(); rebuild();
+})();
+</script>
+</body>
+</html>
