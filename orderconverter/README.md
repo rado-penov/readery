@@ -1,6 +1,6 @@
 # Amazon Orders Converter
 
-**Version 1.2** · © 2026 NS Nexus Limited. All rights reserved.
+**Version 1.3** · © 2026 NS Nexus Limited. All rights reserved.
 
 A single-page web tool that turns Amazon Seller Central order reports into
 Gardners **i12 `.ORD`** order files: one file per Amazon order, ready to send to
@@ -29,8 +29,10 @@ Live at: `https://readery.co.uk/orderconverter/`
 | `HEADER` account | **Gardners Account ID** from Settings (default `NSN001`) |
 | `HEADER` date | Today, `DD/MM/YYYY` |
 | `HEADER` sequence | Running 9-digit number, unique for every order file (`000000001`, `000000002`, …). Stored in the browser as **Next sequence number** in Settings |
+
+Both counters run from `000000001` to `999999999`, then start again at `000000001`. Re-downloading the same order in one session reuses its numbers.
 | `DETAIL` line number | `000000001`, `000000002`, … within each file |
-| `DETAIL` reference | Unique per order line: the 14 digits after the first block of the Amazon order ID + the line number (1-9, then A-Z). `205-4103535-3853118` → `410353538531181`, `410353538531182` |
+| `DETAIL` reference | Unique per order line: a running 9-digit number (`000000001`, `000000002`, …), one per book line across all orders. Stored in the browser as **Next line reference** in Settings |
 | `DETAIL` ISBN | Amazon `sku` with the prefix removed (default `BK-`) and validated as ISBN-10/13 |
 | `DETAIL` quantity | `quantity-to-ship` (falls back to `quantity-purchased`) |
 | `TITLENAME` / `INITIALS` / `INAME` | Split from `buyer-name` (`D…` fields from `recipient-name`) |
@@ -105,6 +107,11 @@ See `Gardners-i12-questions.txt`. In short:
 - The sender address for tracking emails (to register in Seller Central)
 
 ## Changelog
+
+**v1.3**
+- Unique reference is now a 9-digit running number per order line (`000000001` … `999999999`, then restarts), as requested by Gardners
+- New setting: Next line reference
+- Header sequence also restarts at `000000001` after `999999999`
 
 **v1.2**
 - Header sequence is a running number, unique for every order file (Gardners duplication check)

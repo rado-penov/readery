@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Amazon Orders Converter v1.2
+  Amazon Orders Converter v1.3
   Copyright (c) 2026 NS Nexus Limited. All rights reserved.
   This software is the property of NS Nexus Limited.
 -->
@@ -161,7 +161,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
       <div class="row" style="margin-top:18px">
         <button type="button" id="resetSettings">Reset to defaults</button>
       </div>
-      <p class="hint">Settings, including the Gardners Account ID and the next sequence number, are saved in this browser. Prices and delivery are written in pence (e.g. £9.99 → 999).</p>
+      <p class="hint">Settings, including the Gardners Account ID and the next sequence and line reference numbers, are saved in this browser. Both numbers run from 000000001 to 999999999, then start again. Prices and delivery are written in pence (e.g. £9.99 → 999).</p>
     </details>
   </div>
 
@@ -184,7 +184,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     <span class="brand">Readery</span>
     <span>Gardners i12 order format · one file per Amazon order</span>
     <span class="spacer"></span>
-    <span class="legal" id="legal">Amazon Orders Converter v1.2 · © 2026 NS Nexus Limited. All rights reserved.</span>
+    <span class="legal" id="legal">Amazon Orders Converter v1.3 · © 2026 NS Nexus Limited. All rights reserved.</span>
   </div>
 </footer>
 <div class="toast" id="toast"></div>
@@ -203,6 +203,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     ['account','Gardners Account ID','text'],
     ['headerFlag','Header flag','text'],
     ['nextSeq','Next sequence number','text'],
+    ['nextRef','Next line reference','text'],
     ['detailFlag','Detail last field','text'],
     ['skuPrefix','SKU prefix to remove','text'],
     ['serviceStandard','Service code: Standard','text'],
@@ -255,7 +256,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   $('settings').addEventListener('input', e => {
     const k = e.target.dataset.k; if (!k) return;
     settings[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    if (k === 'nextSeq') { const v = e.target.value.replace(/\D/g, ''); if (v !== e.target.value) e.target.value = v; settings[k] = v; }
+    if (k === 'nextSeq' || k === 'nextRef') { const v = e.target.value.replace(/\D/g, ''); if (v !== e.target.value) e.target.value = v; settings[k] = v; }
     if (k === 'account') { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v !== e.target.value) e.target.value = v; settings[k] = v; }
     saveSettings(); rebuild();
   });
@@ -325,7 +326,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
         const price = ov.price !== undefined ? ov.price : l.price;
         const del = ov.delivery !== undefined ? ov.delivery : l.delivery;
         return `<tr>
-          <td class="mono">${esc(C.lineRef(o.orderId, li + 1))}</td>
+          <td class="mono">${state.assigned[o.orderId] ? esc(C.formatSeq(state.assigned[o.orderId].refs[li])) : '<span class="meta">on download</span>'}</td>
           <td class="mono ${l.isbnValid?'':'bad-isbn'}">${esc(l.isbn || '—')}</td>
           <td class="t" title="${esc(l.title)}">${esc(l.title)}</td>
           <td>${l.qty}</td>
@@ -337,7 +338,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
         <div class="row">
           <div>
             <h3>${esc(o.orderId)}</h3>
-            <div class="meta">Header sequence <span class="mono">${state.assigned[o.orderId] ? esc(C.formatSeq(state.assigned[o.orderId])) : 'given on download (next ' + esc(C.formatSeq(settings.nextSeq)) + ')'}</span></div>
+            <div class="meta">Header sequence <span class="mono">${state.assigned[o.orderId] ? esc(C.formatSeq(state.assigned[o.orderId].seq)) : 'given on download (next ' + esc(C.formatSeq(settings.nextSeq)) + ')'}</span></div>
             <div class="meta">${esc(o.recipientName)} · ${esc([a.addr1, a.town, a.postcode].filter(Boolean).join(', '))} · ${o.lines.length} line${o.lines.length===1?'':'s'}</div>
           </div>
           <span class="spacer"></span>
@@ -366,9 +367,9 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     const btn = e.target.closest('button[data-act]'); if (!btn) return;
     const card = btn.closest('.order'); const o = state.orders[+card.dataset.i];
     if (btn.dataset.act === 'download') {
-      const seq = assignSeq(o);
-      download(C.fileNameFor(o, settings), ordFor(o, seq));
-      toast('Downloaded ' + C.fileNameFor(o, settings) + ' · sequence ' + C.formatSeq(seq));
+      const a = assignSeq(o);
+      download(C.fileNameFor(o, settings), ordFor(o));
+      toast('Downloaded ' + C.fileNameFor(o, settings) + ' · sequence ' + C.formatSeq(a.seq));
       afterAssign();
     }
     if (btn.dataset.act === 'preview') {
@@ -383,19 +384,25 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     const n = {}; state.orders.forEach(o => { const f = C.fileNameFor(o, settings); n[f] = (n[f]||0) + 1; }); return n;
   }
 
-  // Header sequence: each order gets the next number once per session; re-downloading the
-  // same order reuses its number, so a double-click can't send it twice under different numbers
+  // Each order gets the next header sequence, and each of its lines the next line references,
+  // once per session. Re-downloading the same order reuses its numbers, so a double-click
+  // can't send it twice under different numbers. Both counters run 1..999999999 then restart at 1.
   function assignSeq(o){
     if (state.assigned[o.orderId]) return state.assigned[o.orderId];
-    const n = parseInt(C.formatSeq(settings.nextSeq), 10);
-    state.assigned[o.orderId] = n;
-    settings.nextSeq = String(n + 1);
+    const seq = C.toCounter(settings.nextSeq);
+    const refs = C.refsFrom(settings.nextRef, o.lines.length);
+    state.assigned[o.orderId] = { seq, refs };
+    settings.nextSeq = String(C.nextCounter(seq));
+    settings.nextRef = String(refs.length ? C.nextCounter(refs[refs.length - 1]) : C.toCounter(settings.nextRef));
     saveSettings();
-    return n;
+    return state.assigned[o.orderId];
   }
   function afterAssign(){ renderSettings(); renderOrders(); }
 
-  function ordFor(o, seq){ return C.renderOrd(o, settings, C.todayStr(), state.overrides, seq || state.assigned[o.orderId] || settings.nextSeq); }
+  function ordFor(o){
+    const a = state.assigned[o.orderId];
+    return C.renderOrd(o, settings, C.todayStr(), state.overrides, a ? a.seq : settings.nextSeq, a ? a.refs : null);
+  }
 
   function download(name, text){
     const blob = new Blob([text], { type: 'text/plain' });
@@ -408,7 +415,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   $('zipAll').addEventListener('click', async () => {
     const zip = new JSZip();
     const ready = state.orders.filter(o => o.lines.length);
-    ready.forEach(o => { const seq = assignSeq(o); zip.file(C.fileNameFor(o, settings), ordFor(o, seq)); });
+    ready.forEach(o => { assignSeq(o); zip.file(C.fileNameFor(o, settings), ordFor(o)); });
     afterAssign();
     const blob = await zip.generateAsync({ type: 'blob' });
     const d = new Date(), stamp = d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
@@ -427,7 +434,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 
   /* ---------- ownership notice (kept in place) ---------- */
   (function(){
-    const TEXT = 'Amazon Orders Converter v1.2 · © 2026 NS Nexus Limited. All rights reserved.';
+    const TEXT = 'Amazon Orders Converter v1.3 · © 2026 NS Nexus Limited. All rights reserved.';
     function ensure(){
       let foot = document.querySelector('footer.site-footer .wrap');
       if (!foot) {

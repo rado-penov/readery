@@ -5,6 +5,7 @@
     account: 'NSN001',
     headerFlag: 'Y',
     nextSeq: '1',
+    nextRef: '1',
     detailFlag: '0',
     skuPrefix: 'BK-',
     serviceStandard: '001',
@@ -203,7 +204,6 @@
     for (const o of map.values()) {
       const w = o.warnings;
       if (!o.lines.length) w.push('Nothing left to ship on this order.');
-      if (o.lines.length > 35) w.push('More than 35 lines: line references after the 35th are not unique.');
       o.lines.forEach(l => {
         if (!l.isbnValid) w.push(`SKU "${l.sku}" doesn't give a valid ISBN (${l.isbn || 'empty'}).`);
         if (l.price === null) w.push(`No price found for ${l.sku}. Add the All Orders file or enter it below.`);
@@ -220,7 +220,8 @@
     return pad(d.getDate(), 2) + '/' + pad(d.getMonth() + 1, 2) + '/' + d.getFullYear();
   }
 
-  function renderOrd(order, settings, dateStr, overrides, seq) {
+  function renderOrd(order, settings, dateStr, overrides, seq, refs) {
+    refs = refs || refsFrom(settings.nextRef, order.lines.length);
     overrides = overrides || {};
     const c = v => clean(v, settings);
     const q = v => '"' + c(v) + '"';
@@ -241,7 +242,7 @@
       const ov = overrides[l.key] || {};
       const price = ov.price !== undefined ? ov.price : (l.price === null ? 0 : l.price);
       const delivery = ov.delivery !== undefined ? ov.delivery : l.delivery;
-      out.push(`"DETAIL",${pad(i + 1, 9)},${q(lineRef(order.orderId, i + 1))},${q(l.isbn)},${l.qty},${num(settings.detailFlag)}`);
+      out.push(`"DETAIL",${pad(i + 1, 9)},${q(formatSeq(refs[i]))},${q(l.isbn)},${l.qty},${num(settings.detailFlag)}`);
       out.push(`"TITLENAME",${q(inv.title)}`);
       out.push(`"INITIALS",${q(inv.initials)}`);
       out.push(`"INAME",${q(inv.surname)}`);
@@ -289,21 +290,24 @@
     return m ? m[1] : id.slice(-15);
   }
 
-  // Unique reference per order line (Gardners: unique for every line ever placed, max 15 chars):
-  // the 14 digits of the Amazon order after the first block + the line number (1-9, then A-Z)
-  // e.g. 205-4103535-3853118, line 2 -> 410353538531182
-  const LINE_CODES = '123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  function lineRef(orderId, lineNo) {
-    const id = String(orderId || '').trim();
-    const m = id.match(/^\d{3}-(\d{7})-(\d{7})$/);
-    const base = m ? m[1] + m[2] : id.replace(/[^A-Za-z0-9]/g, '').slice(-14);
-    return base + (LINE_CODES[lineNo - 1] || '0');
+  // 9-digit running counters (header sequence and line reference):
+  // 000000001 ... 999999999, then back to 000000001
+  const MAX_COUNTER = 999999999;
+  function toCounter(n) {
+    const v = parseInt(String(n == null ? '' : n).replace(/\D/g, ''), 10);
+    if (isNaN(v) || v < 1) return 1;
+    return v > MAX_COUNTER ? ((v - 1) % MAX_COUNTER) + 1 : v;
   }
-
-  // Header sequence: 9-digit running number, unique for every order file
-  function formatSeq(n) {
-    const v = parseInt(String(n || '').replace(/\D/g, ''), 10);
-    return pad(isNaN(v) || v < 1 ? 1 : v, 9);
+  function nextCounter(n) {
+    const v = toCounter(n);
+    return v >= MAX_COUNTER ? 1 : v + 1;
+  }
+  function formatSeq(n) { return pad(toCounter(n), 9); }
+  // Line references for an order, starting from a counter value
+  function refsFrom(start, count) {
+    const out = []; let r = toCounter(start);
+    for (let i = 0; i < count; i++) { out.push(r); r = nextCounter(r); }
+    return out;
   }
 
   // File name: NSN001 + DDMMYY (today) + last 3 digits of the Amazon order ID
@@ -316,7 +320,7 @@
 
   const api = {
     DEFAULT_SETTINGS, decodeBuffer, parseTsv, detectType, buildPriceIndex, buildOrders,
-    renderOrd, fileNameFor, refFor, lineRef, formatSeq, accountId, DEFAULT_ACCOUNT, todayStr, splitName, buildAddress, isValidIsbn, skuToIsbn
+    renderOrd, fileNameFor, refFor, formatSeq, toCounter, nextCounter, refsFrom, accountId, DEFAULT_ACCOUNT, todayStr, splitName, buildAddress, isValidIsbn, skuToIsbn
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OrdConverter = api;
