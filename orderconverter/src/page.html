@@ -161,7 +161,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
       <div class="row" style="margin-top:18px">
         <button type="button" id="resetSettings">Reset to defaults</button>
       </div>
-      <p class="hint">Settings, including the Gardners Account ID and the next sequence and line reference numbers, are saved in this browser. Both numbers run from 000000001 to 999999999, then start again. Prices and delivery are written in pence (e.g. £9.99 → 999).</p>
+      <p class="hint">Settings, including the Gardners Account ID and the next sequence and line reference numbers, are saved in this browser. The sequence number never repeats; line references run from 000000001 to 999999999, then start again. Use one browser for converting, so the numbers are never reused. Prices and delivery are written in pence (e.g. £9.99 → 999).</p>
     </details>
   </div>
 
@@ -338,7 +338,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
         <div class="row">
           <div>
             <h3>${esc(o.orderId)}</h3>
-            <div class="meta">Header sequence <span class="mono">${state.assigned[o.orderId] ? esc(C.formatSeq(state.assigned[o.orderId].seq)) : 'given on download (next ' + esc(C.formatSeq(settings.nextSeq)) + ')'}</span></div>
+            <div class="meta">Header sequence <span class="mono">${state.assigned[o.orderId] ? esc(C.formatHeaderSeq(state.assigned[o.orderId].seq)) : 'given on download (next ' + esc(C.formatHeaderSeq(settings.nextSeq)) + ')'}</span></div>
             <div class="meta">${esc(o.recipientName)} · ${esc([a.addr1, a.town, a.postcode].filter(Boolean).join(', '))} · ${o.lines.length} line${o.lines.length===1?'':'s'}</div>
           </div>
           <span class="spacer"></span>
@@ -369,7 +369,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     if (btn.dataset.act === 'download') {
       const a = assignSeq(o);
       download(C.fileNameFor(o, settings), ordFor(o));
-      toast('Downloaded ' + C.fileNameFor(o, settings) + ' · sequence ' + C.formatSeq(a.seq));
+      toast('Downloaded ' + C.fileNameFor(o, settings) + ' · sequence ' + C.formatHeaderSeq(a.seq));
       afterAssign();
     }
     if (btn.dataset.act === 'preview') {
@@ -389,10 +389,10 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   // can't send it twice under different numbers. Both counters run 1..999999999 then restart at 1.
   function assignSeq(o){
     if (state.assigned[o.orderId]) return state.assigned[o.orderId];
-    const seq = C.toCounter(settings.nextSeq);
+    const seq = C.toSeq(settings.nextSeq);
     const refs = C.refsFrom(settings.nextRef, o.lines.length);
     state.assigned[o.orderId] = { seq, refs };
-    settings.nextSeq = String(C.nextCounter(seq));
+    settings.nextSeq = String(seq + 1);
     settings.nextRef = String(refs.length ? C.nextCounter(refs[refs.length - 1]) : C.toCounter(settings.nextRef));
     saveSettings();
     return state.assigned[o.orderId];

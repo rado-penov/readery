@@ -30,7 +30,9 @@ Live at: `https://readery.co.uk/orderconverter/`
 | `HEADER` date | Today, `DD/MM/YYYY` |
 | `HEADER` sequence | Running 9-digit number, unique for every order file (`000000001`, `000000002`, …). Stored in the browser as **Next sequence number** in Settings |
 
-Both counters run from `000000001` to `999999999`, then start again at `000000001`. Re-downloading the same order in one session reuses its numbers.
+The header sequence must be unique for every order ever sent (alphanumeric, max 20 characters): it never restarts, so after `999999999` it continues to `1000000000`. The line reference is numeric only and runs `000000001` to `999999999`, then starts again at `000000001`. Re-downloading the same order in one session reuses its numbers.
+
+**Important:** both counters are stored in the browser. Convert orders in one browser on one computer, and never clear its site data. If the counter is reset, set **Next sequence number** past the last one sent, or Gardners will reject the orders as duplicates.
 | `DETAIL` line number | `000000001`, `000000002`, … within each file |
 | `DETAIL` reference | Unique per order line: a running 9-digit number (`000000001`, `000000002`, …), one per book line across all orders. Stored in the browser as **Next line reference** in Settings |
 | `DETAIL` ISBN | Amazon `sku` with the prefix removed (default `BK-`) and validated as ISBN-10/13 |
@@ -111,7 +113,7 @@ See `Gardners-i12-questions.txt`. In short:
 **v1.3**
 - Unique reference is now a 9-digit running number per order line (`000000001` … `999999999`, then restarts), as requested by Gardners
 - New setting: Next line reference
-- Header sequence also restarts at `000000001` after `999999999`
+- Header sequence never restarts (Gardners: unique for all orders ever sent, max 20 characters)
 
 **v1.2**
 - Header sequence is a running number, unique for every order file (Gardners duplication check)

@@ -237,7 +237,7 @@
     const sms = tracking && settings.useContactForTracking ? (r['buyer-phone-number'] || '').replace(/\s+/g, '') : '';
 
     const out = [];
-    out.push(`"HEADER",${q(accountId(settings))},${q(dateStr || todayStr())},${q(settings.headerFlag)},${q(formatSeq(seq || settings.nextSeq))}`);
+    out.push(`"HEADER",${q(accountId(settings))},${q(dateStr || todayStr())},${q(settings.headerFlag)},${q(formatHeaderSeq(seq || settings.nextSeq))}`);
     order.lines.forEach((l, i) => {
       const ov = overrides[l.key] || {};
       const price = ov.price !== undefined ? ov.price : (l.price === null ? 0 : l.price);
@@ -290,7 +290,7 @@
     return m ? m[1] : id.slice(-15);
   }
 
-  // 9-digit running counters (header sequence and line reference):
+  // Line reference: 9-digit running counter (Gardners: numeric only),
   // 000000001 ... 999999999, then back to 000000001
   const MAX_COUNTER = 999999999;
   function toCounter(n) {
@@ -303,6 +303,14 @@
     return v >= MAX_COUNTER ? 1 : v + 1;
   }
   function formatSeq(n) { return pad(toCounter(n), 9); }
+
+  // Header sequence (Gardners: unique for every order ever sent, max 20 characters).
+  // Never restarts: 000000001, 000000002 ... 999999999, 1000000000 ...
+  function toSeq(n) {
+    const v = parseInt(String(n == null ? '' : n).replace(/\D/g, '').slice(0, 15), 10);
+    return isNaN(v) || v < 1 ? 1 : v;
+  }
+  function formatHeaderSeq(n) { return pad(toSeq(n), 9); }
   // Line references for an order, starting from a counter value
   function refsFrom(start, count) {
     const out = []; let r = toCounter(start);
@@ -320,7 +328,7 @@
 
   const api = {
     DEFAULT_SETTINGS, decodeBuffer, parseTsv, detectType, buildPriceIndex, buildOrders,
-    renderOrd, fileNameFor, refFor, formatSeq, toCounter, nextCounter, refsFrom, accountId, DEFAULT_ACCOUNT, todayStr, splitName, buildAddress, isValidIsbn, skuToIsbn
+    renderOrd, fileNameFor, refFor, formatSeq, formatHeaderSeq, toSeq, toCounter, nextCounter, refsFrom, accountId, DEFAULT_ACCOUNT, todayStr, splitName, buildAddress, isValidIsbn, skuToIsbn
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OrdConverter = api;
