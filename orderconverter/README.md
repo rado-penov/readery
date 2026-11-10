@@ -1,6 +1,6 @@
 # Amazon Orders Converter
 
-**Version 2.1** · © 2026 NS Nexus Limited. All rights reserved.
+**Version 2.2** · © 2026 NS Nexus Limited. All rights reserved.
 
 A single-page web tool that turns Amazon Seller Central order reports into
 Gardners **i12 `.ORD`** order files: one file per Amazon order, ready to send to
@@ -43,7 +43,9 @@ Live at: `https://readery.co.uk/orderconverter/`
 | `PRICE` / `DELIVERY` | All Orders `item-price` / `shipping-price` in pence (`9.99` → `999`) |
 | `SERVICE` | Settings code for Standard or Expedited orders |
 | `TRACKINGEMAIL` | Customer's Amazon email, always included |
-| `TRACKINGSMS` | Customer phone, only when Tracking = `Y` |
+| `TRACKINGSMS` | Customer phone, always included (i12 spec p10) |
+| `BATCHREF` | Automatic: Amazon order ID without first block and dashes (`205-4103535-3853118` → `41035353853118`); same on every line of an order so it ships as one parcel; printed on the despatch note as the Order Number |
+| `MAXWAIT` | Setting, default `2` days (0-90; 0 = dispatch each item individually) |
 | `TRAILER` | Number of `DETAIL` lines |
 
 **File name:** `<Account ID><DDMMYY><last 3 digits of order>.ORD`, e.g. `NSN001091126161.ORD`. Output uses Windows line endings (CRLF) and plain ASCII by default, matching Gardners' samples.
@@ -143,12 +145,16 @@ for (const order of C.buildOrders(unshipped.rows, C.buildPriceIndex(prices.rows)
 
 See `Gardners-i12-questions.txt`. In short:
 - Meaning of the `HEADER` 4th field (`Y`) and the last `DETAIL` field (`0`)
-- Full list of `SERVICE` codes (tracked, signed-for, next-day)
-- Unit and behaviour of `MAXWAIT`
 - Whether `PRICE` / `DELIVERY` print on the despatch note
 - The sender address for tracking emails (to register in Seller Central)
 
 ## Changelog
+
+**v2.2**
+- Gardners passed both v2.1 test files
+- `BATCHREF` filled automatically with the Amazon order digits (i12 spec p10): an order's books ship together and the despatch note shows the Amazon order number. Batch ref setting removed
+- `MAXWAIT` default 2 days, limited to 0-90
+- Customer phone always sent in `TRACKINGSMS`, as Gardners advise; the SMS option is removed
 
 **v2.1**
 - Gardners feedback: the UNIQUE REFERENCE is the first numeric field of each `DETAIL` line. It now carries the shared line reference, so it is never reused on any line of any order (it used to count lines within each file)

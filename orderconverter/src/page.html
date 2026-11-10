@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Amazon Orders Converter v2.1
+  Amazon Orders Converter v2.2
   Copyright (c) 2026 NS Nexus Limited. All rights reserved.
   This software is the property of NS Nexus Limited.
 -->
@@ -269,7 +269,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     <span class="brand">Readery</span>
     <span>Gardners i12 order format · one file per Amazon order</span>
     <span class="spacer"></span>
-    <span class="legal" id="legal">Amazon Orders Converter v2.1 · © 2026 NS Nexus Limited. All rights reserved.</span>
+    <span class="legal" id="legal">Amazon Orders Converter v2.2 · © 2026 NS Nexus Limited. All rights reserved.</span>
   </div>
 </footer>
 <div class="toast" id="toast"></div>
@@ -290,17 +290,15 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     ['skuPrefix','SKU prefix to remove','text'],
     ['serviceStandard','Service code: Standard','text'],
     ['serviceExpedited','Service code: Expedited/other','text'],
-    ['maxWait','MAXWAIT','text'],
+    ['maxWait','MAXWAIT (days, 0-90)','text'],
     ['giftwrap','Gift wrap','yn'],
     ['signature','Signature','yn'],
     ['tracking','Tracking','yn'],
     ['trackingSafePlace','Tracking safe place','text'],
-    ['batchRef','Batch ref','text'],
     ['comm1','Message line 1 (COMM1)','text'],
     ['comm2','Message line 2 (COMM2)','text'],
     ['comm3','Message line 3 (COMM3)','text'],
     ['comm4','Message line 4 (COMM4)','text'],
-    ['useContactForTracking','Send buyer phone (SMS) when tracking = Y','chk'],
     ['asciiOnly','Remove accents / non‑ASCII characters','chk'],
     ['crlf','Windows line endings (CRLF)','chk']
   ];
@@ -698,7 +696,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 
   /* ---------- ownership notice (kept in place) ---------- */
   (function(){
-    const TEXT = 'Amazon Orders Converter v2.1 · © 2026 NS Nexus Limited. All rights reserved.';
+    const TEXT = 'Amazon Orders Converter v2.2 · © 2026 NS Nexus Limited. All rights reserved.';
     function ensure(){
       let foot = document.querySelector('footer.site-footer .wrap');
       if (!foot) {

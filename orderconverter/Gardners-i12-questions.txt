@@ -59,3 +59,24 @@ Before sending live orders, please confirm the points below.
    - Are there file naming rules? (Ours: NSN001 + DDMMYY + last 3 digits
      of the order number, e.g. NSN001091126161.ORD)
    - What is the cut-off time for same-day despatch?
+
+
+UPDATE 10/11/2026 - answered by Gardners and the i12 Specification
+-------------------------------------------------------------------
+- HEADER sequence: unique for every order ever sent (alphanumeric, max 20).
+  Implemented as a running number (v1.3+).
+- UNIQUE REFERENCE: the first numeric field of each DETAIL line, 9 digits,
+  never reused on any line of any order. Implemented in v2.1.
+  Gardners passed both v2.1 test files.
+- BATCHREF and MAXWAIT (spec p10): BATCHREF groups an order's lines into one
+  parcel and prints as the Order Number on the despatch note. Now the Amazon
+  order digits (v2.2). MAXWAIT = days to hold a batch (1-90, 0 = individual);
+  default 2.
+- SERVICE codes (spec p11): 001 UK 2nd class, 002 UK 1st class,
+  010 airmail untracked, 011 airmail tracked, 015 BFPO.
+- Tracking contacts (spec p10): send TRACKINGEMAIL and TRACKINGSMS even when
+  TRACKING is N. Done in v2.2.
+
+Still open: 1 (HEADER "Y"), 2 (DETAIL last "0"), 6 (PRICE/DELIVERY on the
+despatch note and VAT), 7 (tracking e-mail sender address), 8 (submission
+method and cut-off), and the "I12d FTP Country List.txt" (spec p9).

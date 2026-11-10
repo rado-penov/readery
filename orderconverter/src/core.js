@@ -11,10 +11,8 @@
     giftwrap: 'N',
     signature: 'N',
     tracking: 'N',
-    useContactForTracking: true,
     trackingSafePlace: '',
-    batchRef: '',
-    maxWait: '1',
+    maxWait: '2',
     comm1: 'Thank you for your purchase',
     comm2: '',
     comm3: '',
@@ -232,7 +230,8 @@
       ? settings.serviceStandard : settings.serviceExpedited;
     const tracking = settings.tracking === 'Y';
     const email = r['buyer-email'] || '';
-    const sms = tracking && settings.useContactForTracking ? (r['buyer-phone-number'] || '').replace(/\s+/g, '') : '';
+    // Gardners i12 spec p10: send e-mail and mobile even when TRACKING is N (larger parcels go tracked anyway)
+    const sms = (r['buyer-phone-number'] || '').replace(/\s+/g, '');
 
     const out = [];
     out.push(`"HEADER",${q(accountId(settings))},${q(dateStr || todayStr())},${q(settings.headerFlag)},${q(formatHeaderSeq(seq))}`);
@@ -269,8 +268,8 @@
       out.push(`"TRACKINGEMAIL",${q(email)}`);
       out.push(`"TRACKINGSMS",${q(sms)}`);
       out.push(`"TRACKINGSAFEPLACE",${q(settings.trackingSafePlace)}`);
-      out.push(`"BATCHREF",${q(settings.batchRef)}`);
-      out.push(`"MAXWAIT",${num(settings.maxWait)}`);
+      out.push(`"BATCHREF",${q(batchRefFor(order.orderId))}`);
+      out.push(`"MAXWAIT",${maxWaitOf(settings.maxWait)}`);
       out.push(`"COMM1",${q(settings.comm1)}`);
       out.push(`"COMM2",${q(settings.comm2)}`);
       out.push(`"COMM3",${q(settings.comm3)}`);
@@ -317,6 +316,21 @@
     return out;
   }
 
+  // BATCHREF (Gardners i12 spec p10): groups all lines of an order so they ship together, and is
+  // printed on the despatch note as the Order Number. Alphanumeric, max 15, unique while outstanding.
+  // Amazon order ID without its first block and dashes: 205-4103535-3853118 -> 41035353853118
+  function batchRefFor(orderId) {
+    const id = String(orderId || '').trim();
+    const m = id.match(/^\d{3}-(\d{7})-(\d{7})$/);
+    return m ? m[1] + m[2] : id.replace(/[^A-Za-z0-9]/g, '').slice(-15);
+  }
+
+  // MAXWAIT: days Gardners hold a batch for missing copies; 1-90, 0 = dispatch items individually
+  function maxWaitOf(v) {
+    const n = parseInt(String(v == null ? '' : v).replace(/\D/g, ''), 10);
+    return String(isNaN(n) ? 2 : Math.min(90, Math.max(0, n)));
+  }
+
   // File name: NSN001 + DDMMYY (today) + last 3 digits of the Amazon order ID
   function fileNameFor(order, settings, d) {
     d = d || new Date();
@@ -327,7 +341,7 @@
 
   const api = {
     DEFAULT_SETTINGS, decodeBuffer, parseTsv, detectType, buildPriceIndex, buildOrders,
-    renderOrd, fileNameFor, refFor, formatSeq, formatHeaderSeq, toSeq, toCounter, nextCounter, refsFrom, accountId, DEFAULT_ACCOUNT, todayStr, splitName, buildAddress, isValidIsbn, skuToIsbn
+    renderOrd, fileNameFor, refFor, batchRefFor, maxWaitOf, formatSeq, formatHeaderSeq, toSeq, toCounter, nextCounter, refsFrom, accountId, DEFAULT_ACCOUNT, todayStr, splitName, buildAddress, isValidIsbn, skuToIsbn
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OrdConverter = api;
