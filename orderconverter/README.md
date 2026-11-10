@@ -1,6 +1,6 @@
 # Amazon Orders Converter
 
-**Version 2.3** · © 2026 NS Nexus Limited. All rights reserved.
+**Version 2.4** · © 2026 NS Nexus Limited. All rights reserved.
 
 A single-page web tool that turns Amazon Seller Central order reports into
 Gardners **i12 `.ORD`** order files: one file per Amazon order, ready to send to
@@ -44,6 +44,7 @@ Live at: `https://readery.co.uk/orderconverter/`
 | `PRICE` / `DELIVERY` | All Orders `item-price` / `shipping-price` in pence (`9.99` → `999`) |
 | `SERVICE` | Settings code for Standard or Expedited orders |
 | `TRACKINGEMAIL` | Customer's Amazon email, always included |
+| `TRACKINGSAFEPLACE` | Automatic: Amazon `delivery-instructions` (New Orders report), shortened to 24 characters at a word boundary (`Leave in front of front door, past the gate` → `In front of front door`) |
 | `TRACKINGSMS` | Customer phone, always included (i12 spec p10) |
 | `BATCHREF` | Automatic: Amazon order ID without first block and dashes (`205-4103535-3853118` → `41035353853118`); same on every line of an order so it ships as one parcel; printed on the despatch note as the Order Number |
 | `MAXWAIT` | Setting, default `2` days (0-90; 0 = dispatch each item individually) |
@@ -147,6 +148,10 @@ for (const order of C.buildOrders(unshipped.rows, C.buildPriceIndex(prices.rows)
 Answered by the i12 Specification: TESTING flag (p5), GARDNERSREF (p6), ADDITIONAL REFERENCE (p6), PRICE/DELIVERY on the despatch note (p7), BATCHREF/MAXWAIT (p10), service codes (p11), FTP folders (p3). Still open: carrier sender addresses for tracking e-mails, daily cut-off time, FTP log-in for automatic upload, and the "I12d FTP Country List.txt" (p9).
 
 ## Changelog
+
+**v2.4**
+- `TRACKINGSAFEPLACE` filled automatically from the Amazon delivery instructions (New Orders report), max 24 characters; Tracking safe place setting removed
+- Reports for the same order line are merged, keeping every filled-in value (e.g. Unshipped + New Orders)
 
 **v2.3**
 - "Header flag" renamed **Test order (TESTING flag)**: `Y` = test only, `N` = live (i12 p5); TEST / LIVE banner above the orders

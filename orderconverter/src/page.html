@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Amazon Orders Converter v2.3
+  Amazon Orders Converter v2.4
   Copyright (c) 2026 NS Nexus Limited. All rights reserved.
   This software is the property of NS Nexus Limited.
 -->
@@ -274,7 +274,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     <span class="brand">Readery</span>
     <span>Gardners i12 order format · one file per Amazon order</span>
     <span class="spacer"></span>
-    <span class="legal" id="legal">Amazon Orders Converter v2.3 · © 2026 NS Nexus Limited. All rights reserved.</span>
+    <span class="legal" id="legal">Amazon Orders Converter v2.4 · © 2026 NS Nexus Limited. All rights reserved.</span>
   </div>
 </footer>
 <div class="toast" id="toast"></div>
@@ -299,7 +299,6 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     ['giftwrap','Gift wrap','yn'],
     ['signature','Signature','yn'],
     ['tracking','Tracking','yn'],
-    ['trackingSafePlace','Tracking safe place','text'],
     ['comm1','Message line 1 (COMM1)','text'],
     ['comm2','Message line 2 (COMM2)','text'],
     ['comm3','Message line 3 (COMM3)','text'],
@@ -363,7 +362,14 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
         const text = C.decodeBuffer(await f.arrayBuffer());
         const parsed = C.parseTsv(text);
         const type = C.detectType(parsed.headers);
-        if (type === 'orders') parsed.rows.forEach(r => state.orderRows.set(r['order-id']+'|'+(r['order-item-id']||r['sku']), r));
+        if (type === 'orders') parsed.rows.forEach(r => {
+          // Merge reports for the same order line (e.g. Unshipped + New Orders): keep every filled-in value
+          const key = r['order-id']+'|'+(r['order-item-id']||r['sku']);
+          const prev = state.orderRows.get(key) || {};
+          const merged = Object.assign({}, prev);
+          Object.keys(r).forEach(k => { if (r[k] !== '' || !(k in merged)) merged[k] = r[k]; });
+          state.orderRows.set(key, merged);
+        });
         if (type === 'allorders') parsed.rows.forEach(r => state.allRows.set(r['amazon-order-id']+'|'+(r['order-item-id']||r['sku']), r));
         state.files.push({ name: f.name, type, rows: parsed.rows.length });
       } catch (err) {
@@ -708,7 +714,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 
   /* ---------- ownership notice (kept in place) ---------- */
   (function(){
-    const TEXT = 'Amazon Orders Converter v2.3 · © 2026 NS Nexus Limited. All rights reserved.';
+    const TEXT = 'Amazon Orders Converter v2.4 · © 2026 NS Nexus Limited. All rights reserved.';
     function ensure(){
       let foot = document.querySelector('footer.site-footer .wrap');
       if (!foot) {

@@ -11,7 +11,6 @@
     giftwrap: 'N',
     signature: 'N',
     tracking: 'N',
-    trackingSafePlace: '',
     maxWait: '2',
     comm1: 'Thank you for your purchase',
     comm2: '',
@@ -232,6 +231,7 @@
     const email = r['buyer-email'] || '';
     // Gardners i12 spec p10: send e-mail and mobile even when TRACKING is N (larger parcels go tracked anyway)
     // TRACKINGSMS: numeric and + only (i12 p7). Amazon hides some numbers as 000-000-0000: send nothing then.
+    const safePlace = safePlaceFrom(r['delivery-instructions']);
     const rawPhone = (r['buyer-phone-number'] || r['ship-phone-number'] || '').replace(/[^0-9+]/g, '');
     const sms = /[1-9]/.test(rawPhone) ? rawPhone : '';
 
@@ -270,7 +270,7 @@
       out.push(`"TRACKING",${q(settings.tracking)}`);
       out.push(`"TRACKINGEMAIL",${q(email)}`);
       out.push(`"TRACKINGSMS",${q(sms)}`);
-      out.push(`"TRACKINGSAFEPLACE",${q(settings.trackingSafePlace)}`);
+      out.push(`"TRACKINGSAFEPLACE",${q(safePlace)}`);
       out.push(`"BATCHREF",${q(batchRefFor(order.orderId))}`);
       out.push(`"MAXWAIT",${maxWaitOf(settings.maxWait)}`);
       out.push(`"COMM1",${q(settings.comm1)}`);
@@ -331,6 +331,24 @@
   // HEADER TESTING flag (i12 p5): Y = test only, no orders created; N = live order
   function testFlag(settings) { return String((settings && settings.headerFlag) || 'Y').toUpperCase() === 'N' ? 'N' : 'Y'; }
 
+  // TRACKINGSAFEPLACE (i12 p7): where the parcel can be left, 24 characters max, no speech marks.
+  // Taken from Amazon's delivery-instructions (New Orders report). Polite openings such as
+  // "Please leave it" are dropped, then the text is cut at a word boundary within 24 characters.
+  // e.g. "Leave in front of front door, past the gate" -> "In front of front door"
+  const SAFEPLACE_MAX = 24;
+  function safePlaceFrom(text) {
+    let s = clean(text, { asciiOnly: true }).replace(/'/g, '');
+    s = s.replace(/^(please\s+)?(can you\s+|could you\s+)?(leave|put|place)(\s+(it|the parcel|parcel|the package|package|item))?\s+/i, '');
+    s = s.replace(/^please\s+/i, '').trim();
+    if (s.length > SAFEPLACE_MAX) {
+      const cut = s.slice(0, SAFEPLACE_MAX + 1);
+      const sp = cut.lastIndexOf(' ');
+      s = (sp > 8 ? cut.slice(0, sp) : s.slice(0, SAFEPLACE_MAX));
+    }
+    s = s.replace(/[\s,;:.\-–]+$/, '').slice(0, SAFEPLACE_MAX);
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+  }
+
   // MAXWAIT: days Gardners hold a batch for missing copies; 1-90, 0 = dispatch items individually
   function maxWaitOf(v) {
     const n = parseInt(String(v == null ? '' : v).replace(/\D/g, ''), 10);
@@ -347,7 +365,7 @@
 
   const api = {
     DEFAULT_SETTINGS, decodeBuffer, parseTsv, detectType, buildPriceIndex, buildOrders,
-    renderOrd, fileNameFor, refFor, batchRefFor, testFlag, maxWaitOf, formatSeq, formatHeaderSeq, toSeq, toCounter, nextCounter, refsFrom, accountId, DEFAULT_ACCOUNT, todayStr, splitName, buildAddress, isValidIsbn, skuToIsbn
+    renderOrd, fileNameFor, refFor, batchRefFor, testFlag, safePlaceFrom, maxWaitOf, formatSeq, formatHeaderSeq, toSeq, toCounter, nextCounter, refsFrom, accountId, DEFAULT_ACCOUNT, todayStr, splitName, buildAddress, isValidIsbn, skuToIsbn
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OrdConverter = api;
