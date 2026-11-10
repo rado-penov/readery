@@ -1,6 +1,6 @@
 # Amazon Orders Converter
 
-**Version 2.0** · © 2026 NS Nexus Limited. All rights reserved.
+**Version 2.1** · © 2026 NS Nexus Limited. All rights reserved.
 
 A single-page web tool that turns Amazon Seller Central order reports into
 Gardners **i12 `.ORD`** order files: one file per Amazon order, ready to send to
@@ -28,11 +28,27 @@ Live at: `https://readery.co.uk/orderconverter/`
 
 | Gardners field | Source |
 |---|---|
-| `HEADER` account | **Gardners Account ID** from Settings (default `NSN001`) |
+| `HEADER` account | **Gardners Account ID** from the log-in |
 | `HEADER` date | Today, `DD/MM/YYYY` |
-| `HEADER` sequence | Running 9-digit number, unique for every order file (`000000001`, `000000002`, …). Stored in the browser as **Next sequence number** in Settings |
+| `HEADER` flag | Setting (default `Y`) |
+| `HEADER` sequence | From the number service: one per order file, `000000001`, `000000002`, … never reused |
+| `DETAIL` unique reference | **First field of each `DETAIL` line**, from the number service: one per book line across all orders, 9 digits, never reused (restarts at `000000001` only after `999999999`). The same number is repeated in the quoted field after it |
+| `DETAIL` ISBN | Amazon `sku` with the prefix removed (default `BK-`), validated as ISBN-10/13 |
+| `DETAIL` quantity | `quantity-to-ship` (falls back to `quantity-purchased`) |
+| `DETAIL` last field | Setting (default `0`) |
+| `TITLENAME` / `INITIALS` / `INAME` | Split from `buyer-name` (`D…` fields from `recipient-name`) |
+| `IADDR1-4` / `DADDR1-4` | Address lines (a bare house number is merged with the street), city, county |
+| `IPCODE` / `DPCODE` | `ship-postal-code` |
+| `ICOUNTRY` / `DCOUNTRY` | `ship-country` code converted to name (`GB` → `UNITED KINGDOM`) |
+| `PRICE` / `DELIVERY` | All Orders `item-price` / `shipping-price` in pence (`9.99` → `999`) |
+| `SERVICE` | Settings code for Standard or Expedited orders |
+| `TRACKINGEMAIL` | Customer's Amazon email, always included |
+| `TRACKINGSMS` | Customer phone, only when Tracking = `Y` |
+| `TRAILER` | Number of `DETAIL` lines |
 
-The header sequence must be unique for every order ever sent (alphanumeric, max 20 characters): it never restarts, so after `999999999` it continues to `1000000000`. The line reference is numeric only and runs `000000001` to `999999999`, then starts again at `000000001`.
+**File name:** `<Account ID><DDMMYY><last 3 digits of order>.ORD`, e.g. `NSN001091126161.ORD`. Output uses Windows line endings (CRLF) and plain ASCII by default, matching Gardners' samples.
+
+The header sequence must be unique for every order ever sent (alphanumeric, max 20 characters): it never restarts, so after `999999999` it continues to `1000000000`. The unique reference is numeric only and runs `000000001` to `999999999`, then starts again at `000000001`.
 
 ## Accounts and log-in (v2.0)
 
@@ -133,6 +149,9 @@ See `Gardners-i12-questions.txt`. In short:
 - The sender address for tracking emails (to register in Seller Central)
 
 ## Changelog
+
+**v2.1**
+- Gardners feedback: the UNIQUE REFERENCE is the first numeric field of each `DETAIL` line. It now carries the shared line reference, so it is never reused on any line of any order (it used to count lines within each file)
 
 **v2.0** (major)
 - Log-in with Gardners Account ID + decimal PIN (`####.##`), Create customer, Reset PIN, Log out

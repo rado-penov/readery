@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Amazon Orders Converter v2.0
+  Amazon Orders Converter v2.1
   Copyright (c) 2026 NS Nexus Limited. All rights reserved.
   This software is the property of NS Nexus Limited.
 -->
@@ -269,7 +269,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     <span class="brand">Readery</span>
     <span>Gardners i12 order format · one file per Amazon order</span>
     <span class="spacer"></span>
-    <span class="legal" id="legal">Amazon Orders Converter v2.0 · © 2026 NS Nexus Limited. All rights reserved.</span>
+    <span class="legal" id="legal">Amazon Orders Converter v2.1 · © 2026 NS Nexus Limited. All rights reserved.</span>
   </div>
 </footer>
 <div class="toast" id="toast"></div>
@@ -518,7 +518,8 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
       const ov = overrides[l.key] || {};
       const price = ov.price !== undefined ? ov.price : (l.price === null ? 0 : l.price);
       const delivery = ov.delivery !== undefined ? ov.delivery : l.delivery;
-      out.push(`"DETAIL",${pad(i + 1, 9)},${q(formatSeq(refs[i]))},${q(l.isbn)},${l.qty},${num(settings.detailFlag)}`);
+      // UNIQUE REFERENCE (Gardners i12): the first DETAIL field, 9 digits, never reused on any line of any order
+      out.push(`"DETAIL",${formatSeq(refs[i])},${q(formatSeq(refs[i]))},${q(l.isbn)},${l.qty},${num(settings.detailFlag)}`);
       out.push(`"TITLENAME",${q(inv.title)}`);
       out.push(`"INITIALS",${q(inv.initials)}`);
       out.push(`"INAME",${q(inv.surname)}`);
@@ -1031,7 +1032,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 
   /* ---------- ownership notice (kept in place) ---------- */
   (function(){
-    const TEXT = 'Amazon Orders Converter v2.0 · © 2026 NS Nexus Limited. All rights reserved.';
+    const TEXT = 'Amazon Orders Converter v2.1 · © 2026 NS Nexus Limited. All rights reserved.';
     function ensure(){
       let foot = document.querySelector('footer.site-footer .wrap');
       if (!foot) {

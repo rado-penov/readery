@@ -240,7 +240,8 @@
       const ov = overrides[l.key] || {};
       const price = ov.price !== undefined ? ov.price : (l.price === null ? 0 : l.price);
       const delivery = ov.delivery !== undefined ? ov.delivery : l.delivery;
-      out.push(`"DETAIL",${pad(i + 1, 9)},${q(formatSeq(refs[i]))},${q(l.isbn)},${l.qty},${num(settings.detailFlag)}`);
+      // UNIQUE REFERENCE (Gardners i12): the first DETAIL field, 9 digits, never reused on any line of any order
+      out.push(`"DETAIL",${formatSeq(refs[i])},${q(formatSeq(refs[i]))},${q(l.isbn)},${l.qty},${num(settings.detailFlag)}`);
       out.push(`"TITLENAME",${q(inv.title)}`);
       out.push(`"INITIALS",${q(inv.initials)}`);
       out.push(`"INAME",${q(inv.surname)}`);
