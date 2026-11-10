@@ -514,7 +514,9 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     const tracking = settings.tracking === 'Y';
     const email = r['buyer-email'] || '';
     // Gardners i12 spec p10: send e-mail and mobile even when TRACKING is N (larger parcels go tracked anyway)
-    const sms = (r['buyer-phone-number'] || '').replace(/\s+/g, '');
+    // TRACKINGSMS: numeric and + only (i12 p7). Amazon hides some numbers as 000-000-0000: send nothing then.
+    const rawPhone = (r['buyer-phone-number'] || r['ship-phone-number'] || '').replace(/[^0-9+]/g, '');
+    const sms = /[1-9]/.test(rawPhone) ? rawPhone : '';
 
     const out = [];
     out.push(`"HEADER",${q(accountId(settings))},${q(dateStr || todayStr())},${q(testFlag(settings))},${q(formatHeaderSeq(seq))}`);

@@ -151,6 +151,7 @@ Answered by the i12 Specification: TESTING flag (p5), GARDNERSREF (p6), ADDITION
 **v2.3**
 - "Header flag" renamed **Test order (TESTING flag)**: `Y` = test only, `N` = live (i12 p5); TEST / LIVE banner above the orders
 - ADDITIONAL REFERENCE (quoted DETAIL field) now carries the Amazon order digits, returned in ACK, HDD and ASN files (i12 p6)
+- TRACKINGSMS keeps only digits and `+` (i12 p7) and is left empty for Amazon's hidden-number placeholder `000-000-0000`
 
 **v2.2**
 - Gardners passed both v2.1 test files
