@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Amazon Orders Converter v2.2
+  Amazon Orders Converter v2.3
   Copyright (c) 2026 NS Nexus Limited. All rights reserved.
   This software is the property of NS Nexus Limited.
 -->
@@ -140,6 +140,10 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 .gate .row button{flex:0 0 auto}
 .numbers{margin-top:22px;padding-top:18px;border-top:1px solid var(--rule)}
 .numbers h4{margin:0 0 4px;font:500 18px/1.3 var(--serif)}
+.mode{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font:400 15px/1.5 var(--sans);border-left:4px solid var(--cloth)}
+.mode strong{font-weight:600}
+.mode.test{background:var(--warn-bg);color:var(--warn);border-left-color:var(--gilt)}
+.mode .badge{flex:0 0 auto}
 .again{margin:14px 0 0;padding:12px 14px;border-radius:4px;background:#E3EAE3;color:var(--cloth);font:400 15px/1.5 var(--sans);border-left:3px solid var(--cloth);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .again span{flex:1 1 320px}
 .again button{height:36px;padding:0 14px;font-size:14px}
@@ -250,6 +254,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 
   <h2 class="section-title">Orders</h2>
   <div class="card warns" id="acctWarn" hidden>Enter your Gardners Account ID in Settings to enable downloads.</div>
+  <div class="card mode" id="modeBox"></div>
   <div class="card warns" id="srvWarn" hidden>Can't reach the number service (counter.php), so downloads are switched off to make sure numbers are never reused. Check your connection and reload the page.</div>
   <div class="card">
     <div class="row">
@@ -269,7 +274,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     <span class="brand">Readery</span>
     <span>Gardners i12 order format · one file per Amazon order</span>
     <span class="spacer"></span>
-    <span class="legal" id="legal">Amazon Orders Converter v2.2 · © 2026 NS Nexus Limited. All rights reserved.</span>
+    <span class="legal" id="legal">Amazon Orders Converter v2.3 · © 2026 NS Nexus Limited. All rights reserved.</span>
   </div>
 </footer>
 <div class="toast" id="toast"></div>
@@ -285,7 +290,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   const KEY = 'gardnersOrdSettings.v2';
   const OLD_KEY = 'gardnersOrdSettings.v1';
   const FIELDS = [
-    ['headerFlag','Header flag','text'],
+    ['headerFlag','Test order (TESTING flag)','test'],
     ['detailFlag','Detail last field','text'],
     ['skuPrefix','SKU prefix to remove','text'],
     ['serviceStandard','Service code: Standard','text'],
@@ -329,6 +334,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   function renderSettings(){
     $('settings').innerHTML = FIELDS.map(([k,label,type]) => {
       if (type === 'chk') return `<label class="chk"><input type="checkbox" data-k="${k}" ${settings[k]?'checked':''}> ${esc(label)}</label>`;
+      if (type === 'test') return `<label>${esc(label)}<select data-k="${k}"><option value="Y" ${settings[k]!=='N'?'selected':''}>Y – test only, nothing is shipped</option><option value="N" ${settings[k]==='N'?'selected':''}>N – live, Gardners ship and invoice</option></select></label>`;
       if (type === 'yn') return `<label>${esc(label)}<select data-k="${k}"><option value="N" ${settings[k]==='N'?'selected':''}>N</option><option value="Y" ${settings[k]==='Y'?'selected':''}>Y</option></select></label>`;
       return `<label>${esc(label)}<input type="text" data-k="${k}" value="${esc(settings[k])}"${k==='account'?' maxlength="10" autocomplete="off" placeholder="e.g. NSN001"':''}></label>`;
     }).join('');
@@ -393,6 +399,11 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     $('zipAll').disabled = off || !ready.length || typeof JSZip === 'undefined';
     $('acctWarn').hidden = !noAcct;
     $('srvWarn').hidden = noAcct || state.server.ok !== false;
+    const live = C.testFlag(settings) === 'N';
+    $('modeBox').className = 'card mode' + (live ? '' : ' test');
+    $('modeBox').innerHTML = live
+      ? '<span class="badge">LIVE</span><span><strong>Live orders.</strong> TESTING = N: Gardners will pick, ship and invoice every order you send.</span>'
+      : '<span class="badge bad" style="background:var(--gilt);color:var(--ink)">TEST</span><span><strong>Test mode.</strong> TESTING = Y: Gardners will check these files but won\'t create, ship or invoice any orders. For real orders, set <em>Test order</em> to N in Settings.</span>';
 
     if (!state.orders.length) {
       $('orders').innerHTML = `<div class="card empty">${state.files.length ? 'No orders found. Make sure you uploaded the Unshipped Orders report.' : 'Upload an Unshipped Orders report to see orders here.'}</div>`;
@@ -418,6 +429,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
         <div class="row">
           <div>
             <h3>${esc(o.orderId)}</h3>
+            <div class="meta">Amazon ref / BATCHREF <span class="mono">${esc(C.batchRefFor(o.orderId))}</span></div>
             <div class="meta">Header sequence <span class="mono">${state.assigned[o.orderId] ? esc(C.formatHeaderSeq(state.assigned[o.orderId].seq)) : 'given on download'}</span></div>
             <div class="meta">${esc(o.recipientName)} · ${esc([a.addr1, a.town, a.postcode].filter(Boolean).join(', '))} · ${o.lines.length} line${o.lines.length===1?'':'s'}</div>
           </div>
@@ -696,7 +708,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 
   /* ---------- ownership notice (kept in place) ---------- */
   (function(){
-    const TEXT = 'Amazon Orders Converter v2.2 · © 2026 NS Nexus Limited. All rights reserved.';
+    const TEXT = 'Amazon Orders Converter v2.3 · © 2026 NS Nexus Limited. All rights reserved.';
     function ensure(){
       let foot = document.querySelector('footer.site-footer .wrap');
       if (!foot) {

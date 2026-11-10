@@ -1,6 +1,6 @@
 # Amazon Orders Converter
 
-**Version 2.2** · © 2026 NS Nexus Limited. All rights reserved.
+**Version 2.3** · © 2026 NS Nexus Limited. All rights reserved.
 
 A single-page web tool that turns Amazon Seller Central order reports into
 Gardners **i12 `.ORD`** order files: one file per Amazon order, ready to send to
@@ -30,12 +30,13 @@ Live at: `https://readery.co.uk/orderconverter/`
 |---|---|
 | `HEADER` account | **Gardners Account ID** from the log-in |
 | `HEADER` date | Today, `DD/MM/YYYY` |
-| `HEADER` flag | Setting (default `Y`) |
+| `HEADER` TESTING flag | Setting **Test order**: `Y` = test only (no orders created), `N` = live (i12 p5). Default `Y`; a TEST/LIVE banner shows the mode |
 | `HEADER` sequence | From the number service: one per order file, `000000001`, `000000002`, … never reused |
-| `DETAIL` unique reference | **First field of each `DETAIL` line**, from the number service: one per book line across all orders, 9 digits, never reused (restarts at `000000001` only after `999999999`). The same number is repeated in the quoted field after it |
+| `DETAIL` unique reference | **First field of each `DETAIL` line**, from the number service: one per book line across all orders, 9 digits, never reused (restarts at `000000001` only after `999999999`). |
+| `DETAIL` additional reference | Quoted second field: Amazon order ID without first block and dashes (`41035353853118`); max 15 alphanumeric; returned by Gardners in ACK, HDD and ASN files (i12 p6) |
 | `DETAIL` ISBN | Amazon `sku` with the prefix removed (default `BK-`), validated as ISBN-10/13 |
 | `DETAIL` quantity | `quantity-to-ship` (falls back to `quantity-purchased`) |
-| `DETAIL` last field | Setting (default `0`) |
+| `DETAIL` last field (GARDNERSREF) | Setting (default `0`), only for stock pre-allocated by Gardners |
 | `TITLENAME` / `INITIALS` / `INAME` | Split from `buyer-name` (`D…` fields from `recipient-name`) |
 | `IADDR1-4` / `DADDR1-4` | Address lines (a bare house number is merged with the street), city, county |
 | `IPCODE` / `DPCODE` | `ship-postal-code` |
@@ -143,12 +144,13 @@ for (const order of C.buildOrders(unshipped.rows, C.buildPriceIndex(prices.rows)
 
 ## Open points to confirm with Gardners
 
-See `Gardners-i12-questions.txt`. In short:
-- Meaning of the `HEADER` 4th field (`Y`) and the last `DETAIL` field (`0`)
-- Whether `PRICE` / `DELIVERY` print on the despatch note
-- The sender address for tracking emails (to register in Seller Central)
+Answered by the i12 Specification: TESTING flag (p5), GARDNERSREF (p6), ADDITIONAL REFERENCE (p6), PRICE/DELIVERY on the despatch note (p7), BATCHREF/MAXWAIT (p10), service codes (p11), FTP folders (p3). Still open: carrier sender addresses for tracking e-mails, daily cut-off time, FTP log-in for automatic upload, and the "I12d FTP Country List.txt" (p9).
 
 ## Changelog
+
+**v2.3**
+- "Header flag" renamed **Test order (TESTING flag)**: `Y` = test only, `N` = live (i12 p5); TEST / LIVE banner above the orders
+- ADDITIONAL REFERENCE (quoted DETAIL field) now carries the Amazon order digits, returned in ACK, HDD and ASN files (i12 p6)
 
 **v2.2**
 - Gardners passed both v2.1 test files

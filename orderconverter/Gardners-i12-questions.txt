@@ -80,3 +80,18 @@ UPDATE 10/11/2026 - answered by Gardners and the i12 Specification
 Still open: 1 (HEADER "Y"), 2 (DETAIL last "0"), 6 (PRICE/DELIVERY on the
 despatch note and VAT), 7 (tracking e-mail sender address), 8 (submission
 method and cut-off), and the "I12d FTP Country List.txt" (spec p9).
+
+UPDATE 10/11/2026 (2) - from the i12 Specification
+--------------------------------------------------
+- Q1 HEADER "Y": it is the TESTING flag (p5). Y = test only, no orders
+  created; N = live. Converter setting "Test order" (v2.3).
+- Q2 DETAIL last "0": GARDNERSREF (p6), only for pre-allocated stock. Keep 0.
+- ADDITIONAL REFERENCE (p6): max 15 alphanumeric, returned in ACK/HDD/ASN.
+  Now the Amazon order digits (v2.3).
+- Q6 PRICE/DELIVERY (p7): printed on the dispatch note when not zero; PRICE
+  mandatory for non-UK deliveries.
+- Q8 Submission (p3): FTP, folder HOMEORD; ACK files in HOMEACK.
+
+Still open: tracking e-mails come from the carrier (p10) - which sender
+addresses to register in Amazon Seller Central; daily cut-off time; FTP
+log-in details; "I12d FTP Country List.txt" (p9).

@@ -234,13 +234,14 @@
     const sms = (r['buyer-phone-number'] || '').replace(/\s+/g, '');
 
     const out = [];
-    out.push(`"HEADER",${q(accountId(settings))},${q(dateStr || todayStr())},${q(settings.headerFlag)},${q(formatHeaderSeq(seq))}`);
+    out.push(`"HEADER",${q(accountId(settings))},${q(dateStr || todayStr())},${q(testFlag(settings))},${q(formatHeaderSeq(seq))}`);
     order.lines.forEach((l, i) => {
       const ov = overrides[l.key] || {};
       const price = ov.price !== undefined ? ov.price : (l.price === null ? 0 : l.price);
       const delivery = ov.delivery !== undefined ? ov.delivery : l.delivery;
-      // UNIQUE REFERENCE (Gardners i12): the first DETAIL field, 9 digits, never reused on any line of any order
-      out.push(`"DETAIL",${formatSeq(refs[i])},${q(formatSeq(refs[i]))},${q(l.isbn)},${l.qty},${num(settings.detailFlag)}`);
+      // UNIQUE REFERENCE (i12 p6): first DETAIL field, 9 digits, never reused on any line of any order.
+      // ADDITIONAL REFERENCE (i12 p6): max 15 alphanumeric, returned in ACK/HDD/ASN files -> Amazon order digits
+      out.push(`"DETAIL",${formatSeq(refs[i])},${q(batchRefFor(order.orderId))},${q(l.isbn)},${l.qty},${num(settings.detailFlag)}`);
       out.push(`"TITLENAME",${q(inv.title)}`);
       out.push(`"INITIALS",${q(inv.initials)}`);
       out.push(`"INAME",${q(inv.surname)}`);
@@ -325,6 +326,9 @@
     return m ? m[1] + m[2] : id.replace(/[^A-Za-z0-9]/g, '').slice(-15);
   }
 
+  // HEADER TESTING flag (i12 p5): Y = test only, no orders created; N = live order
+  function testFlag(settings) { return String((settings && settings.headerFlag) || 'Y').toUpperCase() === 'N' ? 'N' : 'Y'; }
+
   // MAXWAIT: days Gardners hold a batch for missing copies; 1-90, 0 = dispatch items individually
   function maxWaitOf(v) {
     const n = parseInt(String(v == null ? '' : v).replace(/\D/g, ''), 10);
@@ -341,7 +345,7 @@
 
   const api = {
     DEFAULT_SETTINGS, decodeBuffer, parseTsv, detectType, buildPriceIndex, buildOrders,
-    renderOrd, fileNameFor, refFor, batchRefFor, maxWaitOf, formatSeq, formatHeaderSeq, toSeq, toCounter, nextCounter, refsFrom, accountId, DEFAULT_ACCOUNT, todayStr, splitName, buildAddress, isValidIsbn, skuToIsbn
+    renderOrd, fileNameFor, refFor, batchRefFor, testFlag, maxWaitOf, formatSeq, formatHeaderSeq, toSeq, toCounter, nextCounter, refsFrom, accountId, DEFAULT_ACCOUNT, todayStr, splitName, buildAddress, isValidIsbn, skuToIsbn
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.OrdConverter = api;
