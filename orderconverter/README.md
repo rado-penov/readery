@@ -1,6 +1,6 @@
 # Amazon Orders Converter
 
-**Version 1.4** · © 2026 NS Nexus Limited. All rights reserved.
+**Version 2.0** · © 2026 NS Nexus Limited. All rights reserved.
 
 A single-page web tool that turns Amazon Seller Central order reports into
 Gardners **i12 `.ORD`** order files: one file per Amazon order, ready to send to
@@ -17,7 +17,8 @@ Live at: `https://readery.co.uk/orderconverter/`
 | **Unshipped Orders** report (`.txt`, required): customer, address, SKU, quantity | One Gardners `.ORD` file per Amazon order |
 | **All Orders** report (`.txt`, optional): item and shipping prices | Multi-book orders as one file with a `DETAIL` block per book |
 
-- Order files are built in the browser. Customer data is never sent to the server; only order numbers and line counts go to the number service.
+- Log-in with **Gardners Account ID + decimal PIN** (`####.##`). Each company has its own counters and order history.
+- Order files are built in the browser. Customer data is never sent to the server; only Amazon order numbers and line counts go to the number service. No company names, people or e-mails are stored.
 - Sequence numbers and line references come from a small PHP service on the hosting (`counter.php`), so every computer uses the same numbers.
 - Reports can be uploaded together or one at a time, and are merged automatically.
 - Each order is shown as a card with warnings before download. Prices can be edited.
@@ -33,51 +34,52 @@ Live at: `https://readery.co.uk/orderconverter/`
 
 The header sequence must be unique for every order ever sent (alphanumeric, max 20 characters): it never restarts, so after `999999999` it continues to `1000000000`. The line reference is numeric only and runs `000000001` to `999999999`, then starts again at `000000001`.
 
-## Shared number service (`counter.php`)
+## Accounts and log-in (v2.0)
 
-Both counters live on the hosting, per Gardners Account ID, in `data/counters.json`.
+- **Log in** with the Gardners Account ID and a PIN typed as 4 digits, a dot and 2 digits (two boxes), e.g. `1234.56`.
+- If the account doesn't exist: *"The customer is not existing. Would you like to create it?"* → confirm the PIN → **Create**.
+- **Reset PIN**: company ID, confirm company ID, new PIN, confirm new PIN. Resetting logs the account out everywhere.
+- 5 wrong PINs in a row lock that account's log-in for 15 minutes; at most 3 PIN resets per account per 24 hours.
+- A log-in lasts 12 hours from the last use, in that browser tab. **Log out** is at the top right.
+- After log-in, Settings → Shared numbers shows when the PIN was last changed.
 
-- Numbers are issued when an order is downloaded. The service locks the file, so two computers downloading at the same moment never get the same number.
-- Each Amazon order keeps the numbers it was given. Converting it again, on any computer, reuses them and the order card shows **Already converted**, so Gardners' duplicate check stops a double order.
-- **Issue new numbers** on that card gives the order fresh numbers for a deliberate resend; the replaced numbers are kept in the file's history.
-- **Settings → Shared numbers** shows and sets the next numbers. The sequence can only be increased.
-- If the service can't be reached, downloads are switched off so numbers are never reused.
+**Known limitation (by design):** Reset PIN does not ask for the old PIN, so anyone who knows an account ID can reset that account's PIN. The limits above and the "PIN last changed" note reduce the risk; keep the folder password-protected as well.
 
-Requests (JSON `POST`, or `GET` for `status`), all with `account`:
+## Number service (`counter.php`)
 
-| action | does |
-|---|---|
-| `status` | returns `nextSeq`, `nextRef` |
-| `lookup` | `ids: [...]` → numbers already issued to those orders |
-| `reserve` | `orders: [{id, lines}]`, optional `renew: [ids]` → issues or reuses numbers |
-| `set` | `nextSeq` (only upwards), `nextRef` |
+Per Gardners Account ID the server keeps only: PIN hash (bcrypt), PIN-changed time, next sequence number, next line reference, the numbers issued to each Amazon order ID, hashed session tokens, and failed-PIN / reset counters. No customer data.
 
-**Hosting requirements:** PHP 7.4 or later (Hostinger has it). Upload `index.html` and `counter.php` to `public_html/orderconverter/`. The `data/` folder is created on first use with an `.htaccess` that blocks web access. **Password-protect the `orderconverter` folder in hPanel**, as anyone who can reach `counter.php` could use up numbers. Back up `data/counters.json` now and then: it is the record of every number issued.
-| `DETAIL` line number | `000000001`, `000000002`, … within each file |
-| `DETAIL` reference | Unique per order line: a running 9-digit number (`000000001`, `000000002`, …), one per book line across all orders. Stored in the browser as **Next line reference** in Settings |
-| `DETAIL` ISBN | Amazon `sku` with the prefix removed (default `BK-`) and validated as ISBN-10/13 |
-| `DETAIL` quantity | `quantity-to-ship` (falls back to `quantity-purchased`) |
-| `TITLENAME` / `INITIALS` / `INAME` | Split from `buyer-name` (`D…` fields from `recipient-name`) |
-| `IADDR1-4` / `DADDR1-4` | Address lines (a bare house number is merged with the street), city, county |
-| `IPCODE` / `DPCODE` | `ship-postal-code` |
-| `ICOUNTRY` / `DCOUNTRY` | `ship-country` code converted to name (`GB` → `UNITED KINGDOM`) |
-| `PRICE` / `DELIVERY` | All Orders `item-price` / `shipping-price` in pence (`9.99` → `999`) |
-| `SERVICE` | Settings code for Standard or Expedited orders |
-| `TRACKINGEMAIL` | Customer's Amazon email, always included |
-| `TRACKINGSMS` | Customer phone, only when Tracking = `Y` |
-| `TRAILER` | Number of `DETAIL` lines |
+- Numbers are issued when an order is downloaded. The file is locked during each change, so two computers never get the same number.
+- Each Amazon order keeps its numbers. Converting it again, on any computer, reuses them and shows **Already converted**; **Issue new numbers** is for a deliberate resend (old numbers are kept in history).
+- **Settings → Shared numbers** sets the next numbers; the sequence can only be increased.
+- If the service can't be reached, downloads switch off so numbers are never reused.
 
-**File name:** `<Account ID><DDMMYY><last 3 digits of order>.ORD`, e.g. `NSN001091126161.ORD`.
+All requests are JSON `POST` to `counter.php`. Calls after log-in send the token in the `X-Session` header; the account is taken from the token, never from the request.
 
-Output uses Windows line endings (CRLF) and plain ASCII by default, matching Gardners' samples.
+| action | needs log-in | does |
+|---|---|---|
+| `exists` | no | `account` → whether it has a PIN |
+| `create` | no | `account`, `pin`, `pinConfirm` → new account (or first PIN for a v1.4 account), returns token |
+| `login` | no | `account`, `pin` → token |
+| `resetpin` | no | `account`, `accountConfirm`, `pin`, `pinConfirm` → new PIN, ends all sessions, returns token |
+| `logout` | token | ends this session |
+| `status` | yes | account, `nextSeq`, `nextRef`, `pinChanged` |
+| `lookup` | yes | `ids: [...]` → numbers already issued |
+| `reserve` | yes | `orders: [{id, lines}]`, optional `renew: [ids]` → issue or reuse numbers |
+| `set` | yes | `nextSeq` (only upwards), `nextRef` |
+
+**Data file:** `data/counters.php` - JSON behind a PHP guard line, so opening it in a browser returns nothing; `data/.htaccess` also blocks the folder. A v1.4 `data/counters.json` is moved in automatically on first use (a copy is kept as `data/counters-v1-backup.php`).
+
+**Hosting:** PHP 7.4 or later. Upload `index.html` and `counter.php` to `public_html/orderconverter/`. Back up `data/counters.php` regularly: it is the record of every number issued. After upgrading from v1.4, **create NSN001 straight away** so its existing counters get your PIN.
 
 ## Project structure
 
 ```
 Order Converter/
 ├── index.html                                  Built, self-contained page: upload to the hosting
-├── counter.php                                 Shared number service: upload next to index.html
+├── counter.php                                 Accounts and number service: upload next to index.html
 ├── README.md
+├── Amazon-Orders-Converter-Service-Manual.docx  Technical / service manual
 ├── Amazon-Orders-Converter-User-Manual.docx    User manual (Word)
 ├── Amazon-Orders-Converter-User-Manual.pptx    User manual (slides)
 ├── User Manual.pdf                             User manual (PDF)
@@ -131,6 +133,14 @@ See `Gardners-i12-questions.txt`. In short:
 - The sender address for tracking emails (to register in Seller Central)
 
 ## Changelog
+
+**v2.0** (major)
+- Log-in with Gardners Account ID + decimal PIN (`####.##`), Create customer, Reset PIN, Log out
+- Counters and order history are per account; the account comes from the log-in, not from Settings
+- PIN stored only as a bcrypt hash; wrong-PIN lock, reset limit, sessions end on PIN reset
+- Data file stored as `counters.php` behind a guard line; v1.4 data migrated automatically
+- "Please read the User Manual before using the tool" on the log-in page
+- Service manual added
 
 **v1.4**
 - Shared number service (`counter.php`) on the hosting: the sequence and line reference counters are the same on every computer

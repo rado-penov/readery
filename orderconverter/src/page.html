@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Amazon Orders Converter v1.4
+  Amazon Orders Converter v2.0
   Copyright (c) 2026 NS Nexus Limited. All rights reserved.
   This software is the property of NS Nexus Limited.
 -->
@@ -23,6 +23,7 @@
   --warn:#7A5A12;--warn-bg:#F6EED8;--err:#C4302B;--err-bg:#F7E3E1;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:400 17px/1.6 var(--serif);min-height:100vh;display:flex;flex-direction:column}
 .wrap{max-width:var(--wrap);margin:0 auto;padding:0 28px;width:100%}
@@ -115,6 +116,28 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 .site-footer .brand{color:var(--paper-hi);font-size:26px}
 .site-footer a{color:#DCE5DF}
 .site-footer .spacer{flex:1}
+/* log-in */
+.who{font:500 15px/1 var(--sans);color:var(--muted);display:flex;align-items:center;gap:12px}
+.who strong{color:var(--ink);font-weight:600}
+.linkbtn{height:auto;padding:0;border:0;background:none;color:var(--cloth);font:500 15px/1 var(--sans);text-decoration:underline;text-underline-offset:3px}
+.linkbtn:hover{background:none;color:var(--ink)}
+.gate{display:flex;justify-content:center;padding:56px 0 24px}
+.gate-card{width:100%;max-width:560px;padding:32px}
+.gate h1{font-size:clamp(34px,5vw,48px);margin-bottom:10px}
+.gentle{margin:0 0 24px;color:var(--muted);font:italic 400 16px/1.5 var(--serif)}
+.gate form{display:flex;flex-direction:column;gap:16px}
+.pinrow{display:flex;flex-direction:column;gap:6px;font:500 13px/1.3 var(--sans);color:var(--muted)}
+.pin{display:flex;align-items:flex-end;gap:6px}
+.pin input{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:20px;letter-spacing:.12em;text-align:center;height:48px}
+.pin input.w{width:120px}
+.pin input.d{width:76px}
+.pin .dot{font:600 30px/1 var(--serif);color:var(--ink);padding-bottom:6px}
+.pinhint{font:400 13px/1.4 var(--sans);color:var(--muted)}
+.create{padding:14px 16px;border-radius:4px;background:var(--warn-bg);color:var(--warn);border-left:3px solid var(--gilt);display:flex;flex-direction:column;gap:12px}
+.create p{margin:0;font:500 15px/1.5 var(--sans)}
+.gmsg{margin:0;min-height:1.4em;font:500 15px/1.4 var(--sans);color:var(--err)}
+.gmsg.okmsg{color:var(--cloth)}
+.gate .row button{flex:0 0 auto}
 .numbers{margin-top:22px;padding-top:18px;border-top:1px solid var(--rule)}
 .numbers h4{margin:0 0 4px;font:500 18px/1.3 var(--serif)}
 .again{margin:14px 0 0;padding:12px 14px;border-radius:4px;background:#E3EAE3;color:var(--cloth);font:400 15px/1.5 var(--sans);border-left:3px solid var(--cloth);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
@@ -137,17 +160,63 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     <a class="brand" href="/" aria-label="Readery home">Readery</a>
     <span class="tool-tag">Trade tools</span>
     <span class="spacer"></span>
+    <span class="who" id="who" hidden><span>Logged in as <strong id="whoAcct"></strong></span><button type="button" class="linkbtn" id="logout">Log out</button></span>
     <a class="back" href="/">Back to shop</a>
   </div>
 </header>
 
 <main class="wrap">
+  <section class="gate" id="gate" hidden>
+    <div class="card gate-card">
+      <p class="eyebrow">Amazon Orders Converter</p>
+      <h1 id="gateTitle">Log in</h1>
+      <p class="gentle">Please read the User Manual before using the tool.</p>
+
+      <form id="loginForm" autocomplete="off" novalidate>
+        <label>Gardners Account ID<input type="text" id="gAcct" maxlength="10" placeholder="e.g. NSN001" autocapitalize="characters" spellcheck="false" autocomplete="off"></label>
+        <div class="pinrow"><span>PIN</span>
+          <div class="pin" data-pin="gPin"><input class="w" id="gPinW" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off" aria-label="PIN, 4-digit whole part"><span class="dot">.</span><input class="d" id="gPinD" inputmode="numeric" maxlength="2" placeholder="00" autocomplete="off" aria-label="PIN, 2-digit decimal part"></div>
+          <span class="pinhint">4 digits, a dot, then 2 digits, e.g. 1234.56</span>
+        </div>
+        <div class="create" id="createBox" hidden>
+          <p>The customer is not existing. Would you like to create it?</p>
+          <div class="pinrow"><span>Confirm PIN</span>
+            <div class="pin" data-pin="gPin2"><input class="w" id="gPin2W" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off" aria-label="Confirm PIN, 4-digit whole part"><span class="dot">.</span><input class="d" id="gPin2D" inputmode="numeric" maxlength="2" placeholder="00" autocomplete="off" aria-label="Confirm PIN, 2-digit decimal part"></div>
+          </div>
+        </div>
+        <p class="gmsg" id="gMsg" role="alert"></p>
+        <div class="row">
+          <button type="submit" class="primary" id="btnLogin">Log in</button>
+          <button type="button" class="primary" id="btnCreate" hidden>Create</button>
+          <button type="button" id="btnShowReset">Reset PIN</button>
+        </div>
+      </form>
+
+      <form id="resetForm" autocomplete="off" novalidate hidden>
+        <label>Company ID (Gardners Account ID)<input type="text" id="rAcct" maxlength="10" placeholder="e.g. NSN001" autocapitalize="characters" spellcheck="false" autocomplete="off"></label>
+        <label>Confirm company ID<input type="text" id="rAcct2" maxlength="10" placeholder="e.g. NSN001" autocapitalize="characters" spellcheck="false" autocomplete="off"></label>
+        <div class="pinrow"><span>New PIN</span>
+          <div class="pin" data-pin="rPin"><input class="w" id="rPinW" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off" aria-label="New PIN, 4-digit whole part"><span class="dot">.</span><input class="d" id="rPinD" inputmode="numeric" maxlength="2" placeholder="00" autocomplete="off" aria-label="New PIN, 2-digit decimal part"></div>
+        </div>
+        <div class="pinrow"><span>Confirm new PIN</span>
+          <div class="pin" data-pin="rPin2"><input class="w" id="rPin2W" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off" aria-label="Confirm new PIN, 4-digit whole part"><span class="dot">.</span><input class="d" id="rPin2D" inputmode="numeric" maxlength="2" placeholder="00" autocomplete="off" aria-label="Confirm new PIN, 2-digit decimal part"></div>
+        </div>
+        <p class="gmsg" id="rMsg" role="alert"></p>
+        <div class="row">
+          <button type="submit" class="primary" id="btnReset">Reset PIN</button>
+          <button type="button" id="btnBack">Back to log in</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <div id="app" hidden>
   <section class="intro">
     <div>
       <p class="eyebrow">Order converter</p>
       <h1>Amazon orders, ready for Gardners.</h1>
     </div>
-    <p class="sub">Upload the Amazon order reports and download one Gardners i12 <span class="mono">.ORD</span> file per order. Everything runs in your browser; no order data is sent to the server.</p>
+    <p class="sub">Upload the Amazon order reports and download one Gardners i12 <span class="mono">.ORD</span> file per order. Customer details stay in your browser; only order numbers are kept on the server.</p>
   </section>
 
   <div class="card">
@@ -165,7 +234,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
       <div class="grid" id="settings"></div>
       <div class="numbers">
         <h4>Shared numbers</h4>
-        <p class="hint" style="margin:0 0 12px">Kept on the server for this Gardners Account ID, so every computer uses the same numbers. The sequence number can only go up.</p>
+        <p class="hint" style="margin:0 0 12px">Kept on the server for your Gardners Account ID, so every computer uses the same numbers. The sequence number can only go up. <span id="pinInfo"></span></p>
         <div class="grid" style="margin-top:0">
           <label>Next sequence number<input type="text" id="nSeq" inputmode="numeric" autocomplete="off"></label>
           <label>Next line reference<input type="text" id="nRef" inputmode="numeric" autocomplete="off"></label>
@@ -192,6 +261,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   </div>
 
   <div id="orders"><div class="card empty">Upload an Unshipped Orders report to see orders here.</div></div>
+  </div>
 </main>
 
 <footer class="site-footer">
@@ -199,7 +269,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     <span class="brand">Readery</span>
     <span>Gardners i12 order format · one file per Amazon order</span>
     <span class="spacer"></span>
-    <span class="legal" id="legal">Amazon Orders Converter v1.4 · © 2026 NS Nexus Limited. All rights reserved.</span>
+    <span class="legal" id="legal">Amazon Orders Converter v2.0 · © 2026 NS Nexus Limited. All rights reserved.</span>
   </div>
 </footer>
 <div class="toast" id="toast"></div>
@@ -215,7 +285,6 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   const KEY = 'gardnersOrdSettings.v2';
   const OLD_KEY = 'gardnersOrdSettings.v1';
   const FIELDS = [
-    ['account','Gardners Account ID','text'],
     ['headerFlag','Header flag','text'],
     ['detailFlag','Detail last field','text'],
     ['skuPrefix','SKU prefix to remove','text'],
@@ -269,11 +338,8 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   $('settings').addEventListener('input', e => {
     const k = e.target.dataset.k; if (!k) return;
     settings[k] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    if (k === 'account') { const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v !== e.target.value) e.target.value = v; settings[k] = v; }
     saveSettings(); rebuild();
-    if (k === 'account') { clearTimeout(acctTimer); acctTimer = setTimeout(() => { state.assigned = {}; refreshServer(); }, 500); }
   });
-  let acctTimer;
   $('resetSettings').addEventListener('click', () => {
     settings = Object.assign({}, C.DEFAULT_SETTINGS); saveSettings(); renderSettings(); rebuild(); toast('Settings reset');
   });
@@ -403,11 +469,23 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 
   /* ---------- shared numbers (counter.php on the hosting) ---------- */
   const API = 'counter.php';
-  async function api(body){
-    const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ account: C.accountId(settings) }, body)), cache: 'no-store', credentials: 'same-origin' });
+  const SKEY = 'gardnersOrdSession';
+  let session = null;
+  try { session = JSON.parse(sessionStorage.getItem(SKEY) || 'null'); } catch(e) {}
+  async function call(body, token){
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['X-Session'] = token;
+    let res;
+    try { res = await fetch(API, { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store', credentials: 'same-origin' }); }
+    catch (e) { const err = new Error("Can't reach the number service. Check your connection."); err.network = true; throw err; }
     const data = await res.json().catch(() => ({ ok: false, error: 'Unexpected reply from the number service' }));
-    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (!res.ok || !data.ok) { const err = new Error(data.error || ('HTTP ' + res.status)); Object.assign(err, data, { status: res.status }); throw err; }
     return data;
+  }
+  async function api(body){
+    if (!session) { showGate('Please log in.'); throw new Error('Not logged in'); }
+    try { return await call(body, session.token); }
+    catch (e) { if (e.loggedOut) showGate(e.message); throw e; }
   }
   function setServer(d){
     state.server.ok = true;
@@ -423,10 +501,107 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     renderOrders();
   }
   async function refreshServer(){
-    if (!C.accountId(settings)) { state.server.ok = null; renderOrders(); return; }
-    try { setServer(await api({ action: 'status' })); await lookupOrders(); }
-    catch (e) { serverDown(e); }
+    try { const d = await api({ action: 'status' }); setServer(d); showPinInfo(d.pinChanged); await lookupOrders(); }
+    catch (e) { if (!e.loggedOut) serverDown(e); }
   }
+  function showPinInfo(iso){ $('pinInfo').textContent = iso ? 'PIN last changed ' + fmtDate(iso) + '.' : ''; }
+
+  /* ---------- log-in, create, reset PIN ---------- */
+  function pinOf(prefix){ return $(prefix + 'W').value + '.' + $(prefix + 'D').value; }
+  function pinOk(pin){ return /^\d{4}\.\d{2}$/.test(pin); }
+  function acctOf(id){ return $(id).value.toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+  function msg(id, text, good){ const m = $(id); m.textContent = text || ''; m.classList.toggle('okmsg', !!good); }
+  function setCreateMode(on){
+    $('createBox').hidden = !on; $('btnCreate').hidden = !on; $('btnLogin').hidden = on;
+    $('gateTitle').textContent = on ? 'Create customer' : 'Log in';
+    if (on) { $('gPin2W').value = ''; $('gPin2D').value = ''; }
+  }
+  function clearPins(){ document.querySelectorAll('.gate .pin input').forEach(i => i.value = ''); }
+  function showGate(text){
+    session = null; try { sessionStorage.removeItem(SKEY); } catch(e) {}
+    state.files = []; state.orderRows.clear(); state.allRows.clear(); state.overrides = {}; state.assigned = {};
+    state.server = { ok: null, nextSeq: null, nextRef: null };
+    renderFiles(); rebuild();
+    $('app').hidden = true; $('who').hidden = true; $('gate').hidden = false;
+    $('resetForm').hidden = true; $('loginForm').hidden = false; setCreateMode(false); clearPins();
+    msg('gMsg', text || ''); msg('rMsg', '');
+    setTimeout(() => ($('gAcct').value ? $('gPinW') : $('gAcct')).focus(), 0);
+  }
+  function startSession(d){
+    session = { token: d.token, account: d.account };
+    try { sessionStorage.setItem(SKEY, JSON.stringify(session)); } catch(e) {}
+    enterApp(d);
+  }
+  function enterApp(d){
+    settings.account = session.account; saveSettings();
+    $('whoAcct').textContent = session.account;
+    $('gate').hidden = true; $('app').hidden = false; $('who').hidden = false;
+    clearPins();
+    if (d) { setServer(d); showPinInfo(d.pinChanged); }
+    renderSettings(); rebuild(); refreshServer();
+  }
+  // Digits only; jump from the 4-digit part to the 2-digit part; accept a pasted "1234.56"
+  document.querySelectorAll('.gate .pin').forEach(box => {
+    const w = box.querySelector('.w'), d = box.querySelector('.d');
+    w.addEventListener('input', () => {
+      const raw = w.value;
+      if (/\d{4}\.?\d{1,2}/.test(raw)) { const m = raw.match(/(\d{4})\.?(\d{0,2})/); w.value = m[1]; d.value = m[2]; d.focus(); return; }
+      if (raw.includes('.')) { w.value = raw.replace(/\D/g, '').slice(0, 4); d.focus(); return; }
+      w.value = raw.replace(/\D/g, '').slice(0, 4);
+      if (w.value.length === 4) d.focus();
+    });
+    d.addEventListener('input', () => { d.value = d.value.replace(/\D/g, '').slice(0, 2); });
+    d.addEventListener('keydown', e => { if (e.key === 'Backspace' && !d.value) { w.focus(); } });
+  });
+  ['gAcct', 'rAcct', 'rAcct2'].forEach(id => $(id).addEventListener('input', e => {
+    const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v !== e.target.value) e.target.value = v;
+    if (id === 'gAcct') { setCreateMode(false); msg('gMsg', ''); }
+  }));
+
+  $('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!$('createBox').hidden) return doCreate();
+    const account = acctOf('gAcct'), pin = pinOf('gPin');
+    if (!account) return msg('gMsg', 'Enter your Gardners Account ID.');
+    if (!pinOk(pin)) return msg('gMsg', 'Enter the PIN as 4 digits, a dot and 2 digits, e.g. 1234.56.');
+    msg('gMsg', 'Checking…', true);
+    try { startSession(await call({ action: 'login', account, pin })); }
+    catch (err) {
+      if (err.notFound) { msg('gMsg', ''); setCreateMode(true); $('gPin2W').focus(); }
+      else msg('gMsg', err.message);
+    }
+  });
+  async function doCreate(){
+    const account = acctOf('gAcct'), pin = pinOf('gPin'), pin2 = pinOf('gPin2');
+    if (!account) return msg('gMsg', 'Enter the Gardners Account ID.');
+    if (!pinOk(pin)) return msg('gMsg', 'Enter the PIN as 4 digits, a dot and 2 digits, e.g. 1234.56.');
+    if (pin !== pin2) return msg('gMsg', 'The two PINs do not match.');
+    msg('gMsg', 'Creating…', true);
+    try { const d = await call({ action: 'create', account, pin, pinConfirm: pin2 }); startSession(d); toast('Customer ' + d.account + ' created'); }
+    catch (err) { msg('gMsg', err.message); }
+  }
+  $('btnCreate').addEventListener('click', doCreate);
+  $('btnShowReset').addEventListener('click', () => {
+    $('loginForm').hidden = true; $('resetForm').hidden = false; $('gateTitle').textContent = 'Reset PIN';
+    $('rAcct').value = acctOf('gAcct'); $('rAcct2').value = ''; msg('rMsg', ''); clearPins();
+    ($('rAcct').value ? $('rAcct2') : $('rAcct')).focus();
+  });
+  $('btnBack').addEventListener('click', () => { $('resetForm').hidden = true; $('loginForm').hidden = false; setCreateMode(false); msg('gMsg', ''); clearPins(); });
+  $('resetForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const account = acctOf('rAcct'), account2 = acctOf('rAcct2'), pin = pinOf('rPin'), pin2 = pinOf('rPin2');
+    if (!account) return msg('rMsg', 'Enter the company ID.');
+    if (account !== account2) return msg('rMsg', 'The two company IDs do not match.');
+    if (!pinOk(pin)) return msg('rMsg', 'Enter the new PIN as 4 digits, a dot and 2 digits, e.g. 1234.56.');
+    if (pin !== pin2) return msg('rMsg', 'The two PINs do not match.');
+    msg('rMsg', 'Resetting…', true);
+    try { const d = await call({ action: 'resetpin', account, accountConfirm: account2, pin, pinConfirm: pin2 }); startSession(d); toast('PIN reset. You are logged in as ' + d.account); }
+    catch (err) { msg('rMsg', err.notFound ? 'The customer is not existing.' : err.message); }
+  });
+  $('logout').addEventListener('click', async () => {
+    try { if (session) await call({ action: 'logout' }, session.token); } catch(e) {}
+    showGate('You have been logged out.');
+  });
   // Mark orders that were already given numbers (on any computer)
   async function lookupOrders(){
     const ids = state.orders.filter(o => o.lines.length && !state.assigned[o.orderId]).map(o => o.orderId);
@@ -438,7 +613,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
           const r = d.orders[id];
           if (o && r.refs.length === o.lines.length) state.assigned[id] = { seq: r.seq, refs: r.refs, issued: r.issued, known: true };
         });
-      } catch (e) { serverDown(e); return; }
+      } catch (e) { if (!e.loggedOut) serverDown(e); return; }
     }
     renderOrders();
   }
@@ -454,7 +629,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
   async function withBusy(fn){
     state.busy = true; renderOrders();
     try { await fn(); }
-    catch (e) { toast('Not downloaded: ' + e.message); if (/fetch|network/i.test(e.message)) serverDown(e); }
+    catch (e) { if (!e.loggedOut) { toast('Not downloaded: ' + e.message); if (e.network) serverDown(e); } }
     finally { state.busy = false; renderOrders(); }
   }
   function downloadOne(o){
@@ -480,7 +655,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     try {
       const d = await api({ action: 'set', nextSeq: $('nSeq').value.replace(/\D/g, ''), nextRef: $('nRef').value.replace(/\D/g, '') });
       setServer(d); toast(d.message || 'Numbers saved');
-    } catch (e) { toast('Not saved: ' + e.message); }
+    } catch (e) { if (!e.loggedOut) toast('Not saved: ' + e.message); }
   });
   ['nSeq', 'nRef'].forEach(id => $(id).addEventListener('input', e => { const v = e.target.value.replace(/\D/g, ''); if (v !== e.target.value) e.target.value = v; }));
 
@@ -523,7 +698,7 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
 
   /* ---------- ownership notice (kept in place) ---------- */
   (function(){
-    const TEXT = 'Amazon Orders Converter v1.4 · © 2026 NS Nexus Limited. All rights reserved.';
+    const TEXT = 'Amazon Orders Converter v2.0 · © 2026 NS Nexus Limited. All rights reserved.';
     function ensure(){
       let foot = document.querySelector('footer.site-footer .wrap');
       if (!foot) {
@@ -541,7 +716,8 @@ pre{background:var(--paper);border:1px solid var(--rule);border-radius:4px;paddi
     ensure();
     new MutationObserver(ensure).observe(document.body, { childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:['style','class','hidden'] });
   })();
-  renderSettings(); rebuild(); refreshServer();
+  renderSettings(); rebuild();
+  if (session && session.token) enterApp(null); else showGate('');
 })();
 </script>
 </body>
